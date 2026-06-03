@@ -62,18 +62,23 @@ fi
 
 # ---- 5. Sign ----
 if $RELEASE; then
-  IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+  # `|| true` so a no-match grep doesn't trip `set -e`/pipefail before our friendly check.
+  IDENTITY=$( (security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}') || true )
   if [ -z "$IDENTITY" ]; then
     echo "  ✗ No 'Developer ID Application' certificate found. Create one in your Apple Developer account."
     echo "    (For local runs, omit --release to sign with your Apple Development identity.)"
     exit 1
   fi
-  echo "  • signing (release, hardened runtime): $IDENTITY"
-  codesign --force --deep --options runtime \
+  echo "  • signing (release, hardened runtime + secure timestamp): $IDENTITY"
+  # --timestamp is REQUIRED for notarization. --deep is deprecated by Apple; we sign the
+  # single Mach-O bundle explicitly (no nested binaries to sign here).
+  codesign --force --options runtime --timestamp \
     --entitlements Stale.entitlements \
     --sign "$IDENTITY" "$APP"
+  echo "  • verifying signature…"
+  codesign --verify --strict --verbose=2 "$APP" 2>&1 | sed 's/^/      /'
 else
-  IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Development" | head -1 | awk -F'"' '{print $2}')
+  IDENTITY=$( (security find-identity -v -p codesigning | grep "Apple Development" | head -1 | awk -F'"' '{print $2}') || true )
   if [ -z "$IDENTITY" ]; then
     echo "  • no signing identity found — building UNSIGNED (will still run locally)"
   else
