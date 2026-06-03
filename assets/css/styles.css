@@ -104,6 +104,19 @@ body {
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
 
+/* ---------- icons (Lucide, inline SVG, inherit color + size) ---------- */
+.icon {
+  width: 1.05em; height: 1.05em; flex: none;
+  display: inline-block; vertical-align: -0.16em;
+  stroke-width: 2; overflow: visible;
+}
+/* buttons that lead with an icon: align + space it from the label */
+.btn .icon, .copy-btn .icon, .install-btn .icon { vertical-align: -0.18em; margin-right: 1px; }
+.icon.inline { width: 1em; height: 1em; vertical-align: -0.14em; }
+.icon.tiny { width: 13px; height: 13px; vertical-align: -0.18em; margin-right: 3px; }
+.ver.same .icon.tiny { color: var(--green-d); }
+.update-status .icon.tiny { vertical-align: -0.16em; }
+
 /* ---------- window chrome ---------- */
 .window {
   max-width: 760px; margin: 0 auto;
@@ -144,7 +157,10 @@ body {
 
 /* hero */
 .hero { text-align: center; margin-bottom: 26px; }
-.leaf-mark { font-size: 34px; line-height: 1; }
+.leaf-mark { line-height: 1; color: var(--green-d); display: inline-flex; }
+.leaf-mark .icon { width: 34px; height: 34px; stroke-width: 1.75; }
+.title .icon.title-leaf { width: 14px; height: 14px; color: var(--green-d); vertical-align: -0.16em; }
+.privacy .icon { color: var(--dim); }
 .hero h1 {
   font-size: clamp(24px, 4.4vw, 32px); font-weight: 600; letter-spacing: -0.035em;
   margin-top: 10px; line-height: 1.05;
@@ -273,7 +289,8 @@ textarea#input.dragover { border-color: var(--blue); border-style: dashed; backg
 /* toolbar */
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
 .searchbar { position: relative; flex: 1; min-width: 180px; }
-.searchbar .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--dimmer); font-size: 15px; }
+.searchbar .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dimmer); display: inline-flex; }
+.searchbar .search-icon .icon { width: 15px; height: 15px; }
 .searchbar input {
   width: 100%; background: var(--bg2); border: 1px solid var(--line); border-radius: 11px;
   padding: 10px 14px 10px 34px; font-family: var(--sans); font-size: 14px; color: var(--text);
@@ -289,9 +306,17 @@ textarea#input.dragover { border-color: var(--blue); border-style: dashed; backg
 }
 .group > summary::-webkit-details-marker { display: none; }
 .group > summary:focus-visible { outline: none; box-shadow: inset var(--ring-focus); }
-.group > summary .dot { font-size: 16px; }
+.group > summary .dot { display: inline-flex; }
+.group > summary .dot .icon { width: 16px; height: 16px; }
+/* tint each group's icon with its semantic color */
+.group.action > summary .dot { color: var(--amber-d); }
+.group.self   > summary .dot { color: var(--dim); }
+.group.ok     > summary .dot { color: var(--green-d); }
+.group.unknown> summary .dot { color: var(--dimmer); }
+.group.mas    > summary .dot { color: var(--blue); }
 .group > summary .badge { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; color: #fff; }
-.group > summary .chev { margin-left: auto; color: var(--dimmer); transition: transform .18s var(--ease); font-size: 11px; }
+.group > summary .chev { margin-left: auto; color: var(--dimmer); display: inline-flex; transition: transform .18s var(--ease); }
+.group > summary .chev .icon { width: 15px; height: 15px; }
 .group[open] > summary .chev { transform: rotate(90deg); }
 .group.action > summary .badge { background: var(--amber); }
 .group.self   > summary .badge { background: var(--dimmer); }

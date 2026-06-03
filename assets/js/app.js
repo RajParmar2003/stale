@@ -323,7 +323,7 @@ function animateNumber(el, to) {
 function scoreHeadline(score, groups) {
   if (score == null) return { h: "No third-party apps to check", s: "Everything in your list is an Apple or App Store app — those update on their own." };
   const need = groups.action.length;
-  if (score >= 90) return { h: "Your Mac is fresh 🍃", s: need ? `${need} app${need>1?"s":""} could still use a look.` : "Nothing needs your attention right now." };
+  if (score >= 90) return { h: "Your Mac is fresh", s: need ? `${need} app${need>1?"s":""} could still use a look.` : "Nothing needs your attention right now." };
   if (score >= 70) return { h: "Looking good", s: `${need} app${need===1?"":"s"} worth updating when you get a moment.` };
   if (score >= 50) return { h: "A few things are aging", s: `${need} app${need===1?"":"s"} are behind — worth a refresh.` };
   return { h: "Time for a refresh", s: `${need} app${need===1?"":"s"} are noticeably out of date.` };
@@ -347,7 +347,7 @@ function appRow(entry) {
     const sevTag = (status === "outdated" && sev && sev !== "unknown") ? `<span class="sev ${sev}">${sev}</span>` : "";
     ver = `<div class="ver"><span class="old">${esc(app.version || "?")}</span><span class="arrow">→</span><span class="new">${esc(latest)}</span>${sevTag}${status==="differs"?'<span class="tag">version differs</span>':""}</div>`;
   } else if (status === "current") {
-    ver = `<div class="ver same"><span class="cur">✓ ${esc(app.version || "")}</span> · up to date</div>`;
+    ver = `<div class="ver same">${ic("circle-check","tiny")}<span class="cur">${esc(app.version || "")}</span> · up to date</div>`;
   } else if (status === "ahead") {
     ver = `<div class="ver same"><span class="cur">${esc(app.version || "")}</span> · ahead of release (${esc(cask.version)})</div>`;
   } else if (status === "noversion") {
@@ -359,7 +359,7 @@ function appRow(entry) {
       const sevTag = masSev !== "unknown" ? `<span class="sev ${masSev}">${masSev}</span>` : "";
       ver = `<div class="ver"><span class="old">${esc(app.version || "?")}</span><span class="arrow">→</span><span class="new">${esc(entry.masLatest)}</span>${sevTag} <span class="tag">App Store</span></div>`;
     } else if (entry.masLatest) {
-      ver = `<div class="ver same"><span class="cur">✓ ${esc(app.version || "")}</span> · up to date · App Store</div>`;
+      ver = `<div class="ver same">${ic("circle-check","tiny")}<span class="cur">${esc(app.version || "")}</span> · up to date · App Store</div>`;
     } else if (entry.masUnchecked) {
       ver = `<div class="ver">${esc(app.version || "")} · manage in the App Store</div>`;
     } else {
@@ -378,15 +378,15 @@ function appRow(entry) {
       if (IS_NATIVE && state.brewAvailable) {
         right.push(`<button class="pill update-btn" data-update="${esc(cask.token)}" data-key="${esc(rowKey(app))}" title="Update with Homebrew">Update</button>`);
       } else {
-        right.push(`<span class="pill" data-copy="brew install --cask ${esc(cask.token)}" title="Copy Homebrew command">brew ⧉</span>`);
+        right.push(`<span class="pill" data-copy="brew install --cask ${esc(cask.token)}" title="Copy Homebrew command">brew ${ic("copy")}</span>`);
       }
     }
     if (cask.homepage)
-      right.push(`<a class="open" href="${esc(cask.homepage)}" target="_blank" rel="noopener noreferrer" title="Open ${esc(cask.name?.[0]||"homepage")}">↗</a>`);
+      right.push(`<a class="open" href="${esc(cask.homepage)}" target="_blank" rel="noopener noreferrer" title="Open ${esc(cask.name?.[0]||"homepage")}">${ic("arrow-up-right")}</a>`);
   }
   // App Store row: link out to its listing once we have it
   if (status === "mas" && entry.masUrl) {
-    right.push(`<a class="open" href="${esc(entry.masUrl)}" target="_blank" rel="noopener noreferrer" title="View in the App Store">↗</a>`);
+    right.push(`<a class="open" href="${esc(entry.masUrl)}" target="_blank" rel="noopener noreferrer" title="View in the App Store">${ic("arrow-up-right")}</a>`);
   }
   return `<div class="app" data-name="${esc((app.name||"").toLowerCase())}" data-key="${esc(rowKey(app))}">
     ${avatar}
@@ -410,10 +410,15 @@ function iconURL(app) {
   return null;
 }
 
-function groupBlock(cls, dot, title, items, open, footer) {
+/* icon helper: returns an inline SVG string (empty string if icons.js absent) */
+function ic(name, cls) {
+  return (window.StaleIcons ? window.StaleIcons.icon(name, { className: cls || "" }) : "");
+}
+
+function groupBlock(cls, dotIcon, title, items, open, footer) {
   if (!items.length) return "";
   return `<details class="group ${cls}" ${open ? "open" : ""}>
-    <summary><span class="dot" aria-hidden="true">${dot}</span> ${title} <span class="badge">${items.length}</span><span class="chev" aria-hidden="true">▶</span></summary>
+    <summary><span class="dot">${ic(dotIcon)}</span> ${title} <span class="badge">${items.length}</span><span class="chev">${ic("chevron-right")}</span></summary>
     <div class="applist">${items.map(appRow).join("")}</div>
     ${footer || ""}
   </details>`;
@@ -448,15 +453,15 @@ function render(groups, diff) {
   // batch action footer for the action group
   const tokens = groups.action.filter((e) => e.cask && e.cask.token).map((e) => e.cask.token);
   const actionFooter = tokens.length
-    ? `<div class="group-actions"><button class="btn small ghost" data-batch="${esc(tokens.join(" "))}">⧉ Copy update commands (${tokens.length})</button></div>`
+    ? `<div class="group-actions"><button class="btn small ghost" data-batch="${esc(tokens.join(" "))}">${ic("copy")} Copy update commands (${tokens.length})</button></div>`
     : "";
 
   dom.groups.innerHTML =
-    groupBlock("action", "🍂", "Worth updating", groups.action, true, actionFooter) +
-    groupBlock("self", "🔄", "Newer version exists — but these update themselves", groups.self, false) +
-    groupBlock("ok", "✅", "Up to date", groups.ok, false) +
-    groupBlock("unknown", "❓", "Not in Homebrew’s database", groups.unknown, false) +
-    groupBlock("mas", "🛍️", "Mac App Store — manage updates there", groups.mas, false);
+    groupBlock("action", "leaf", "Worth updating", groups.action, true, actionFooter) +
+    groupBlock("self", "refresh-cw", "Newer version exists — but these update themselves", groups.self, false) +
+    groupBlock("ok", "circle-check", "Up to date", groups.ok, false) +
+    groupBlock("unknown", "circle-help", "Not in Homebrew’s database", groups.unknown, false) +
+    groupBlock("mas", "store", "Mac App Store — manage updates there", groups.mas, false);
 
   const total = Object.values(groups).reduce((n, g) => n + g.length, 0);
   if (total === 0) dom.groups.innerHTML = `<div class="empty">No apps found in that list. Did the command finish copying before you pasted?</div>`;
@@ -595,7 +600,7 @@ function buildICS() {
   return [
     "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Stale//Mac App Checker//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT",
     "UID:" + uid, "DTSTAMP:" + fmt(now), "DTSTART:" + fmt(start), "DURATION:PT15M",
-    "SUMMARY:🍂 Check your Mac apps with Stale", "DESCRIPTION:Open Stale and run a fresh scan to see which apps have gone stale.",
+    "SUMMARY:Check your Mac apps with Stale", "DESCRIPTION:Open Stale and run a fresh scan to see which apps have gone stale.",
     "BEGIN:VALARM","TRIGGER:-PT0M","ACTION:DISPLAY","DESCRIPTION:Time to check your Mac apps","END:VALARM",
     "END:VEVENT","END:VCALENDAR",
   ].join("\r\n");
@@ -824,7 +829,7 @@ function setupNative() {
     if (el) {
       el.classList.remove("running");
       el.classList.add(ok ? "ok" : "err");
-      el.textContent = ok ? "✓ updated" : "✗ failed — try the command";
+      el.innerHTML = ok ? `${ic("circle-check","tiny")} updated` : `${ic("x","tiny")} failed — try the command`;
     }
     const btn = row && row.querySelector(".update-btn");
     if (btn) { btn.disabled = false; btn.textContent = ok ? "Done" : "Retry"; if (ok) btn.classList.add("done"); }
@@ -881,6 +886,7 @@ function boot() {
 
   // one-time cleanup: pre-1.1 builds used a single un-namespaced DB; drop the orphan.
   try { indexedDB.deleteDatabase("stale-db"); } catch {}
+  if (window.StaleIcons) window.StaleIcons.hydrateIcons(document);   // swap static <i data-icon> for SVGs
   applyBuildIdentity();
   setupNative();
   wireEvents();

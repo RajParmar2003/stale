@@ -22,15 +22,16 @@
 <meta property="og:type" content="website" />
 
 <link rel="stylesheet" href="assets/css/styles.css" />
+<script src="assets/js/icons.js" defer></script>
 <script src="assets/js/app.js" defer></script>
 </head>
 <body>
 <div class="window" id="window">
   <header class="titlebar">
     <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="title">🍂 Stale<span class="build-badge" id="buildBadge" hidden></span></div>
+    <div class="title"><i data-icon="leaf" data-icon-class="title-leaf"></i> Stale<span class="build-badge" id="buildBadge" hidden></span></div>
     <div class="titlebar-right">
-      <button class="install-btn" id="installBtn" hidden>📌 Add to Dock</button>
+      <button class="install-btn" id="installBtn" hidden><i data-icon="pin"></i> Add to Dock</button>
       <div class="db" id="dbStatus" title="Homebrew Cask database status">
         <span class="led" aria-hidden="true"></span><span id="dbText">loading database…</span>
       </div>
@@ -41,15 +42,15 @@
     <!-- ===== Intro / input ===== -->
     <section id="intro">
       <div class="hero">
-        <div class="leaf-mark" aria-hidden="true">🍂</div>
+        <div class="leaf-mark" aria-hidden="true"><i data-icon="leaf"></i></div>
         <h1>Which of your Mac apps are out of date?</h1>
         <p class="lede">Check every app against Homebrew’s live version database. Free, no install.</p>
-        <p class="privacy"><span class="lock">🔒</span> Runs <strong>entirely on your Mac.</strong> Nothing is uploaded.</p>
+        <p class="privacy"><i data-icon="lock" data-icon-class="inline"></i> Runs <strong>entirely on your Mac.</strong> Nothing is uploaded.</p>
       </div>
 
       <!-- Native app: one-click scan, no Terminal. Hidden unless running inside Stale.app. -->
       <div class="native-scan" id="nativeScan">
-        <button class="btn primary big" id="scanBtn">🍂 Scan my Mac</button>
+        <button class="btn primary big" id="scanBtn"><i data-icon="leaf"></i> Scan my Mac</button>
         <p class="native-hint">Reads your installed apps directly — privately, on your machine. No Terminal, no copy-paste.</p>
       </div>
 
@@ -110,12 +111,12 @@
 
       <div class="toolbar">
         <div class="searchbar">
-          <span class="search-icon" aria-hidden="true">⌕</span>
+          <span class="search-icon" aria-hidden="true"><i data-icon="search"></i></span>
           <input id="search" type="search" placeholder="Filter apps…" aria-label="Filter apps" />
         </div>
         <div class="toolbar-actions">
-          <button class="btn small ghost" id="remindBtn" title="Download a calendar reminder to check again">⏰ Remind me</button>
-          <button class="btn small ghost" id="rescanBtn">↻ New scan</button>
+          <button class="btn small ghost" id="remindBtn" title="Download a calendar reminder to check again"><i data-icon="bell"></i> Remind me</button>
+          <button class="btn small ghost" id="rescanBtn"><i data-icon="rotate-cw"></i> New scan</button>
         </div>
       </div>
 
