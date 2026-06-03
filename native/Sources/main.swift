@@ -57,8 +57,59 @@ final class WebAssetSchemeHandler: NSObject, WKURLSchemeHandler {
         case "svg":  return "image/svg+xml"
         case "png":  return "image/png"
         case "ico":  return "image/x-icon"
+        case "woff2": return "font/woff2"
         default:     return "application/octet-stream"
         }
+    }
+}
+
+/// Serves real app icons over stale-icon://icon?path=<app path>. The web layer uses these
+/// as <img> sources, so each visible row shows its genuine logo. Icons are rendered to PNG
+/// on demand and cached in-process. Only paths under the standard app directories are served
+/// (defense-in-depth: a renderer can't coerce this into reading arbitrary files as images).
+final class IconSchemeHandler: NSObject, WKURLSchemeHandler {
+    private var cache = [String: Data]()
+    private let allowedPrefixes = ["/Applications", "/System/Applications", "/System/Library", "/Library"]
+
+    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
+        guard let url = task.request.url,
+              let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let path = comps.queryItems?.first(where: { $0.name == "path" })?.value
+        else { fail(task); return }
+
+        let png = iconPNG(for: path)
+        guard let data = png else { fail(task); return }
+        let headers = ["Content-Type": "image/png", "Cache-Control": "max-age=86400",
+                       "Access-Control-Allow-Origin": "*"]
+        let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers)!
+        task.didReceive(resp); task.didReceive(data); task.didFinish()
+    }
+    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+
+    private func fail(_ task: WKURLSchemeTask) {
+        guard let url = task.request.url else { task.didFailWithError(URLError(.badURL)); return }
+        let resp = HTTPURLResponse(url: url, statusCode: 404, httpVersion: "HTTP/1.1", headerFields: nil)!
+        task.didReceive(resp); task.didFinish()
+    }
+
+    private func iconPNG(for appPath: String) -> Data? {
+        if let hit = cache[appPath] { return hit }
+        guard allowedPrefixes.contains(where: { appPath.hasPrefix($0) }),
+              FileManager.default.fileExists(atPath: appPath) else { return nil }
+        let img = NSWorkspace.shared.icon(forFile: appPath)
+        let side: CGFloat = 64
+        let target = NSSize(width: side, height: side)
+        let resized = NSImage(size: target)
+        resized.lockFocus()
+        img.draw(in: NSRect(origin: .zero, size: target),
+                 from: NSRect(origin: .zero, size: img.size),
+                 operation: .copy, fraction: 1.0)
+        resized.unlockFocus()
+        guard let tiff = resized.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return nil }
+        cache[appPath] = png
+        return png
     }
 }
 
@@ -107,6 +158,7 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
         let cfg = WKWebViewConfiguration()
         let web = webRoot()
         cfg.setURLSchemeHandler(WebAssetSchemeHandler(root: web), forURLScheme: "stale")
+        cfg.setURLSchemeHandler(IconSchemeHandler(), forURLScheme: "stale-icon")  // real app logos
         cfg.userContentController.add(self, name: "staleScan")        // JS → Swift bridge
         let wv = WKWebView(frame: .zero, configuration: cfg)
         wv.navigationDelegate = self

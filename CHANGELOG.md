@@ -5,6 +5,17 @@ All notable changes to Stale are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added — real app logos
+- The native app now shows each app's **real icon** instead of a colored letter tile.
+  A `stale-icon://` scheme handler renders `NSWorkspace.icon(forFile:)` to PNG on demand
+  (lazy per visible row, in-process cache), keyed by the app's on-disk path.
+- **Security:** the icon handler only serves paths under standard app directories
+  (`/Applications`, `/System/Applications`, `/System/Library`, `/Library`) — verified a
+  traversal probe (`/etc/passwd`) is rejected.
+- **Web/Local fallback:** rows render an `<img>` that falls back to the colored initial on
+  error, so non-native contexts degrade cleanly (verified: no broken images).
+- Avatar keeps a hairline ring when showing a real logo so pale/transparent icons retain an edge.
+
 ### Changed — UI redesign (sharp / minimal)
 - **Typography:** adopted **Geist** + **Geist Mono** (SIL OFL), bundled in `assets/fonts/`
   for offline parity. Replaces the rounded system font with a sharp neo-grotesque; tighter
