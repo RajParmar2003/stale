@@ -49,6 +49,12 @@ async function run() {
   eq("cmp 26.2.3.2 vs 26.2.3 -> 1 (user's updated LibreOffice is ahead-or-equal)",
      S.cmpVer("26.2.3.2", "26.2.3"), 1);
 
+  /* ---- prettyVersion (display) ---- */
+  eq("pretty strips ,build", S.prettyVersion("2.0.10,5119448496078848"), "2.0.10");
+  eq("pretty strips long (build)", S.prettyVersion("6.7.7 (76486)"), "6.7.7");
+  eq("pretty keeps 4-part", S.prettyVersion("7.0.5.81138"), "7.0.5.81138");
+  eq("pretty keeps normal", S.prettyVersion("149.0.7827.54"), "149.0.7827.54");
+
   /* ---- severity ---- */
   eq("sev major", S.severity("1.0.0", "2.0.0"), "major");
   eq("sev minor", S.severity("1.2.0", "1.5.0"), "minor");

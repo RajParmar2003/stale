@@ -169,6 +169,14 @@ function verParts(v) {
   const head = String(v).split(",")[0].trim();          // cask "1.2,345" -> "1.2"
   return head.split(/[^0-9]+/).filter((x) => x.length).map(Number).filter((n) => !Number.isNaN(n));
 }
+/* human-readable version for DISPLAY: drop Homebrew's ",build" suffix and any absurdly
+   long opaque build number, so "2.0.10,5119448496078848" shows as "2.0.10". */
+function prettyVersion(v) {
+  if (v == null) return "";
+  let s = String(v).split(",")[0].trim();               // strip ,<build>
+  s = s.replace(/\s*\(\d{5,}\)\s*$/, "");               // strip trailing "(76486)"-style builds
+  return s;
+}
 // 1 (a>b) | -1 (a<b) | 0 (equal) | null (undecidable)
 function cmpVer(a, b) {
   const pa = verParts(a), pb = verParts(b);
@@ -342,14 +350,15 @@ function appRow(entry) {
         `onerror="this.remove();this.parentNode.classList.remove('has-img');this.parentNode.textContent='${esc(letter)}'">` +
       `</div>`
     : `<div class="avatar" style="background:${color}" aria-hidden="true">${esc(letter)}</div>`;
+  const curV = esc(prettyVersion(app.version) || "?");
   let ver;
   if (status === "outdated" || status === "differs") {
     const sevTag = (status === "outdated" && sev && sev !== "unknown") ? `<span class="sev ${sev}">${sev}</span>` : "";
-    ver = `<div class="ver"><span class="old">${esc(app.version || "?")}</span><span class="arrow">→</span><span class="new">${esc(latest)}</span>${sevTag}${status==="differs"?'<span class="tag">version differs</span>':""}</div>`;
+    ver = `<div class="ver"><span class="old">${curV}</span><span class="arrow">→</span><span class="new">${esc(prettyVersion(latest))}</span>${sevTag}${status==="differs"?'<span class="tag">version differs</span>':""}</div>`;
   } else if (status === "current") {
-    ver = `<div class="ver same">${ic("circle-check","tiny")}<span class="cur">${esc(app.version || "")}</span> · up to date</div>`;
+    ver = `<div class="ver same">${ic("circle-check","tiny")}<span class="cur">${curV}</span> · up to date</div>`;
   } else if (status === "ahead") {
-    ver = `<div class="ver same"><span class="cur">${esc(app.version || "")}</span> · ahead of release (${esc(cask.version)})</div>`;
+    ver = `<div class="ver same"><span class="cur">${curV}</span> · ahead of release (${esc(prettyVersion(cask.version))})</div>`;
   } else if (status === "noversion") {
     ver = `<div class="ver">version unknown · matched ${esc(cask.token)}</div>`;
   } else if (status === "mas") {
@@ -357,16 +366,16 @@ function appRow(entry) {
     if (entry.masLatest && cmpVer(entry.masLatest, app.version) === 1) {
       const masSev = severity(app.version, entry.masLatest);
       const sevTag = masSev !== "unknown" ? `<span class="sev ${masSev}">${masSev}</span>` : "";
-      ver = `<div class="ver"><span class="old">${esc(app.version || "?")}</span><span class="arrow">→</span><span class="new">${esc(entry.masLatest)}</span>${sevTag} <span class="tag">App Store</span></div>`;
+      ver = `<div class="ver"><span class="old">${curV}</span><span class="arrow">→</span><span class="new">${esc(prettyVersion(entry.masLatest))}</span>${sevTag} <span class="tag">App Store</span></div>`;
     } else if (entry.masLatest) {
-      ver = `<div class="ver same">${ic("circle-check","tiny")}<span class="cur">${esc(app.version || "")}</span> · up to date · App Store</div>`;
+      ver = `<div class="ver same">${ic("circle-check","tiny")}<span class="cur">${curV}</span> · up to date · App Store</div>`;
     } else if (entry.masUnchecked) {
-      ver = `<div class="ver">${esc(app.version || "")} · manage in the App Store</div>`;
+      ver = `<div class="ver">${curV} · manage in the App Store</div>`;
     } else {
-      ver = `<div class="ver">${esc(app.version || "")} · checking App Store…</div>`;
+      ver = `<div class="ver">${curV} · checking App Store…</div>`;
     }
   } else {
-    ver = `<div class="ver">${esc(app.version || "version unknown")}</div>`;
+    ver = `<div class="ver">${esc(prettyVersion(app.version) || "version unknown")}</div>`;
   }
   const right = [];
   if (cask) {
@@ -879,7 +888,7 @@ function startUpdate(btn) {
 /* debug/test API — assigned BEFORE boot() so it exists even if boot throws, and so the
    test suite (which loads app.js without the full app DOM) can use the pure functions. */
 window.Stale = {
-  state, norm, verParts, cmpVer, severity, parseInput, dedupe, analyze,
+  state, norm, verParts, cmpVer, prettyVersion, severity, parseInput, dedupe, analyze,
   freshnessScore, freshnessWeight, diffSince, runCheck, buildICS, SAMPLE,
   build: BUILD, dbName: DB_NAME, detectBuild, isNative: IS_NATIVE,
 };
