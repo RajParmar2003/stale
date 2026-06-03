@@ -1,0 +1,11 @@
+# build artifacts
+build/
+*.iconset/
+AppIcon.icns
+
+# macOS
+.DS_Store
+
+# notarization
+*.zip
+*.dmg

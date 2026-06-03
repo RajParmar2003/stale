@@ -1,0 +1,16 @@
+{
+  "name": "Stale — Mac app update checker",
+  "short_name": "Stale",
+  "description": "Find the outdated apps on your Mac, privately. Checks your apps against Homebrew's live version database — entirely in your browser.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#161618",
+  "theme_color": "#161618",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

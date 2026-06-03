@@ -1,0 +1,27 @@
+# ── macOS ──
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── Native build artifacts (regenerable) ──
+native/build/
+native/*.iconset/
+native/AppIcon.icns
+
+# ── Notarization / distribution outputs ──
+*.zip
+*.dmg
+
+# ── Pilot / real-user data — never commit a person's app list ──
+*.test.json
+realapps*.json
+/tmp-*
+
+# ── Dependencies / editor / env ──
+node_modules/
+dist/
+.vscode/
+.idea/
+*.swp
+.env
+.env.local

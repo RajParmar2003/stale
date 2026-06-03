@@ -1,0 +1,22 @@
+{
+  "name": "stale",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Find the outdated apps on your Mac, privately. A free, no-install, client-side replacement for MacUpdater that checks your apps against Homebrew's live version database.",
+  "keywords": ["macos", "homebrew", "app-updates", "macupdater", "pwa", "privacy", "utility"],
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 4180",
+    "serve": "python3 -m http.server 4180",
+    "test": "echo \"Tests run in-browser via the window.Stale debug API — see docs/TESTING.md\" && exit 0"
+  },
+  "engines": {
+    "note": "No runtime dependency. Any static file server works; Python's http.server is used for local dev."
+  },
+  "browserslist": [
+    "macOS Safari >= 17",
+    "last 2 Chrome versions",
+    "last 2 Edge versions"
+  ]
+}

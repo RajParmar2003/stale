@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Stale — find the outdated apps on your Mac, privately</title>
+<meta name="description" content="MacUpdater shut down. Stale is the free, no-install, private replacement: paste one command's output and instantly see which Mac apps are outdated. Runs 100% in your browser — nothing is uploaded." />
+
+<!-- PWA / Dock -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Stale" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg" />
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+
+<!-- Social -->
+<meta property="og:title" content="Stale — find the outdated apps on your Mac" />
+<meta property="og:description" content="The free, private, no-install MacUpdater replacement. Paste one command, see what's stale." />
+<meta property="og:type" content="website" />
+
+<link rel="stylesheet" href="assets/css/styles.css" />
+<script src="assets/js/app.js" defer></script>
+</head>
+<body>
+<div class="window" id="window">
+  <header class="titlebar">
+    <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="title">🍂 Stale<span class="build-badge" id="buildBadge" hidden></span></div>
+    <div class="titlebar-right">
+      <button class="install-btn" id="installBtn" hidden>📌 Add to Dock</button>
+      <div class="db" id="dbStatus" title="Homebrew Cask database status">
+        <span class="led" aria-hidden="true"></span><span id="dbText">loading database…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="body">
+    <!-- ===== Intro / input ===== -->
+    <section id="intro">
+      <div class="hero">
+        <div class="leaf-mark" aria-hidden="true">🍂</div>
+        <h1>Which of your Mac apps have gone stale?</h1>
+        <p class="lede">MacUpdater shut down on Jan&nbsp;1,&nbsp;2026. Stale is the free, no-install replacement — it checks your apps against Homebrew’s live version database.</p>
+        <p class="privacy"><span class="lock">🔒</span> Runs <strong>entirely in your browser.</strong> Your app list never leaves your Mac — there is no server to send it to.</p>
+      </div>
+
+      <!-- Native app: one-click scan, no Terminal. Hidden unless running inside Stale.app. -->
+      <div class="native-scan" id="nativeScan">
+        <button class="btn primary big" id="scanBtn">🍂 Scan my Mac</button>
+        <p class="native-hint">Reads your installed apps directly — privately, on your machine. No Terminal, no copy-paste.</p>
+      </div>
+
+      <div class="resume" id="resume" hidden>
+        <div class="resume-text">
+          <strong>Welcome back.</strong>
+          <span id="resumeMeta"></span>
+        </div>
+        <div class="resume-actions">
+          <button class="btn small" id="resumeBtn">Show last scan</button>
+        </div>
+      </div>
+
+      <ol class="steps">
+        <li class="step">
+          <div class="step-label"><span class="num">1</span><span>Grab your app list</span><span class="sub">— this copies it straight to your clipboard</span></div>
+          <div class="cmd">
+            <code id="cmdText">system_profiler SPApplicationsDataType -json <span class="muted">| pbcopy</span></code>
+            <button class="copy-btn" id="copyCmd" aria-label="Copy command">Copy</button>
+          </div>
+        </li>
+        <li class="step">
+          <div class="step-label"><span class="num">2</span><span>Paste it here</span><span class="sub">— or drop the file — then Check</span></div>
+          <label class="sr-only" for="input">Paste system_profiler JSON output</label>
+          <textarea id="input" spellcheck="false" autocomplete="off"
+            placeholder="Paste the output here (it begins with { &quot;SPApplicationsDataType&quot;: [ … ), or drop a .json file"></textarea>
+          <div class="row-actions">
+            <button class="btn primary" id="checkBtn" disabled>Check for updates</button>
+            <button class="btn link" id="sampleBtn">Try with sample data</button>
+            <button class="btn link" id="clearBtn" hidden>Clear</button>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ===== Results ===== -->
+    <section class="results" id="results" hidden aria-live="polite">
+      <div class="scoreboard">
+        <div class="gauge-wrap">
+          <svg class="gauge" viewBox="0 0 120 120" role="img" aria-labelledby="gaugeLabel">
+            <title id="gaugeLabel">Freshness score</title>
+            <circle class="gauge-track" cx="60" cy="60" r="52" />
+            <circle class="gauge-fill" id="gaugeFill" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="gauge-center">
+            <div class="gauge-score" id="gaugeScore">0</div>
+            <div class="gauge-cap">Freshness</div>
+          </div>
+        </div>
+        <div class="scoreboard-text">
+          <h2 id="scoreHeadline">Scanning…</h2>
+          <p id="scoreSub" class="muted-text"></p>
+          <div class="diff" id="diff" hidden></div>
+        </div>
+      </div>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="toolbar">
+        <div class="searchbar">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="search" type="search" placeholder="Filter apps…" aria-label="Filter apps" />
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn small ghost" id="remindBtn" title="Download a calendar reminder to check again">⏰ Remind me</button>
+          <button class="btn small ghost" id="rescanBtn">↻ New scan</button>
+        </div>
+      </div>
+
+      <div id="groups"></div>
+      <p class="disclaimer" id="disclaimer"></p>
+    </section>
+  </main>
+</div>
+
+<footer class="footnote">
+  Version data from the <a href="https://formulae.brew.sh" target="_blank" rel="noopener noreferrer">Homebrew Cask</a> project (BSD-2-Clause) ·
+  Stale is not affiliated with Homebrew or Apple ·
+  <a href="https://github.com" target="_blank" rel="noopener noreferrer" id="srcLink">source &amp; privacy</a>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="assertive"></div>
+</body>
+</html>

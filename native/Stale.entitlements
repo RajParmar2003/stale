@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      NOT sandboxed. Stale must run /usr/sbin/system_profiler and read /Applications
+      to scan installed apps — the App Sandbox forbids both. This is exactly why apps
+      like MacUpdater/CleanMyMac distribute OUTSIDE the Mac App Store (which requires
+      the sandbox). We DO enable the hardened runtime (set at codesign time) so the
+      app can still be notarized for distribution.
+    -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+    <!-- Hardened runtime needs this only if we ever load plugins; harmless to omit.
+         Network access is implicit without the sandbox (used to fetch the Homebrew DB). -->
+</dict>
+</plist>
