@@ -5,6 +5,23 @@ All notable changes to Stale are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added — Mac App Store version data
+- App Store apps now show **current → latest** (and a severity badge), not just "updates in
+  the App Store". Data comes from Apple's public **iTunes Lookup/Search API**, fetched
+  client-side (CORS-open; verified Things3 `3.19.0 → 3.22.11`).
+- **App Store artwork** is used as the app's logo in every entity (web included), via the
+  same API — so MAS apps get real icons even without the native layer.
+- The native scanner now injects each app's **`CFBundleIdentifier`** (read from its
+  Info.plist) so lookups are exact; web falls back to name search.
+- Results are cached in IndexedDB (7-day TTL), with bounded concurrency; failed lookups
+  fall back to "manage in the App Store" rather than hanging on "checking…".
+- The Mac App Store group header shows how many updates are actually available.
+
+### Changed — service worker is now network-first for code
+- HTML/JS/CSS use **network-first** (cache fallback offline), fixing stale-code-after-update.
+  Icons/fonts stay cache-first. External APIs (Homebrew, iTunes, artwork) bypass the SW.
+- `?nosw` dev escape hatch unregisters the SW for debugging.
+
 ### Added — real app logos
 - The native app now shows each app's **real icon** instead of a colored letter tile.
   A `stale-icon://` scheme handler renders `NSWorkspace.icon(forFile:)` to PNG on demand

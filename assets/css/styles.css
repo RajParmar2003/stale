@@ -299,6 +299,9 @@ textarea#input.dragover { border-color: var(--blue); border-style: dashed; backg
 .group.unknown> summary .badge { background: var(--line2); color: var(--dim); }
 .group.mas    > summary .badge { background: var(--blue); }
 .group .group-head-extra { margin-left: 8px; }
+.group > summary .mas-note { margin-left: auto; }
+.group > summary .mas-note + .chev { margin-left: 10px; }
+.group > summary .mas-note.warn { color: var(--amber-d); background: color-mix(in srgb, var(--amber) 14%, transparent); }
 
 .applist { padding: 4px; }
 .app { display: flex; align-items: center; gap: 13px; padding: 11px 12px; border-radius: 10px; }
