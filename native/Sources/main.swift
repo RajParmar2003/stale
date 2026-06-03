@@ -162,6 +162,71 @@ enum Scanner {
     }
 }
 
+// MARK: - Homebrew updater (one-click, hidden background process)
+
+enum Brew {
+    /// Locate the brew binary (Apple Silicon first, then Intel). nil if Homebrew isn't installed.
+    static func path() -> String? {
+        for p in ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"] where FileManager.default.isExecutableFile(atPath: p) {
+            return p
+        }
+        return nil
+    }
+
+    /// A cask token is safe to pass as an argument: Homebrew tokens are [a-z0-9-@._] only.
+    static func isValidToken(_ t: String) -> Bool {
+        !t.isEmpty && t.range(of: "^[a-z0-9][a-z0-9@._-]*$", options: .regularExpression) != nil
+    }
+}
+
+/// Runs Homebrew in a hidden process, streaming output lines to a callback. Tries
+/// `upgrade --cask <token>` first; if the cask isn't brew-managed yet, falls back to
+/// `install --cask <token>` (which adopts/installs the latest). Nothing is shown in a
+/// Terminal window — progress is surfaced inside the app instead.
+final class CaskUpgrade {
+
+    func run(token: String,
+             onLine: @escaping (String) -> Void,
+             onDone: @escaping (_ ok: Bool) -> Void) {
+        guard Brew.path() != nil, Brew.isValidToken(token) else { onDone(false); return }
+        runBrew(["upgrade", "--cask", token], onLine: onLine) { ok in
+            if ok { onDone(true); return }
+            // Upgrade can fail simply because the cask isn't installed via brew. Adopt it.
+            onLine("· not brew-managed yet — installing latest…")
+            self.runBrew(["install", "--cask", "--adopt", token], onLine: onLine, onDone: onDone)
+        }
+    }
+
+    private func runBrew(_ args: [String],
+                         onLine: @escaping (String) -> Void,
+                         onDone: @escaping (_ ok: Bool) -> Void) {
+        guard let brew = Brew.path() else { onDone(false); return }
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: brew)
+        proc.arguments = args
+        var env = ProcessInfo.processInfo.environment
+        env["HOMEBREW_NO_AUTO_UPDATE"] = "1"          // faster, predictable
+        env["HOMEBREW_NO_ENV_HINTS"] = "1"
+        proc.environment = env
+
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = pipe
+        pipe.fileHandleForReading.readabilityHandler = { fh in
+            let data = fh.availableData
+            guard !data.isEmpty, let s = String(data: data, encoding: .utf8) else { return }
+            for line in s.split(separator: "\n", omittingEmptySubsequences: true) {
+                DispatchQueue.main.async { onLine(String(line)) }
+            }
+        }
+        proc.terminationHandler = { p in
+            pipe.fileHandleForReading.readabilityHandler = nil
+            DispatchQueue.main.async { onDone(p.terminationStatus == 0) }
+        }
+        do { try proc.run() } catch { onDone(false) }
+    }
+}
+
 // MARK: - Main controller
 
 final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
@@ -184,6 +249,8 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
         cfg.setURLSchemeHandler(WebAssetSchemeHandler(root: web), forURLScheme: "stale")
         cfg.setURLSchemeHandler(IconSchemeHandler(), forURLScheme: "stale-icon")  // real app logos
         cfg.userContentController.add(self, name: "staleScan")        // JS → Swift bridge
+        cfg.userContentController.add(self, name: "staleUpdate")      // one-click brew upgrade
+        cfg.userContentController.add(self, name: "staleBrewCheck")   // is Homebrew available?
         let wv = WKWebView(frame: .zero, configuration: cfg)
         wv.navigationDelegate = self
         if #available(macOS 13.3, *) { wv.isInspectable = true }       // right-click → Inspect in dev
@@ -257,9 +324,20 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
         } catch { NSSound.beep() }
     }
 
-    // ----- JS → Swift bridge: run the scan, hand JSON back to the page -----
+    // hold strong refs to in-flight upgrades, keyed by row key, so they aren't deallocated
+    private var upgrades = [String: CaskUpgrade]()
+
+    // ----- JS → Swift bridge -----
     func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "staleScan" else { return }
+        switch message.name {
+        case "staleScan":      handleScan()
+        case "staleBrewCheck": handleBrewCheck()
+        case "staleUpdate":    handleUpdate(message.body)
+        default: break
+        }
+    }
+
+    private func handleScan() {
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Scanner.scan()
             DispatchQueue.main.async {
@@ -267,14 +345,37 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                 case .success(let json):
                     // base64 so we never have to escape the (large) JSON payload into JS source.
                     let b64 = Data(json.utf8).base64EncodedString()
-                    let js = "window.__staleReceiveScan(atob(\"\(b64)\"))"
-                    self.webView.evaluateJavaScript(js, completionHandler: nil)
+                    self.webView.evaluateJavaScript("window.__staleReceiveScan(atob(\"\(b64)\"))", completionHandler: nil)
                 case .failure:
-                    self.webView.evaluateJavaScript(
-                        "window.toast && window.toast('Could not read your apps.')", completionHandler: nil)
+                    self.webView.evaluateJavaScript("window.toast && window.toast('Could not read your apps.')", completionHandler: nil)
                 }
             }
         }
+    }
+
+    private func handleBrewCheck() {
+        let available = Brew.path() != nil
+        webView.evaluateJavaScript("window.__staleBrewAvailable && window.__staleBrewAvailable(\(available))", completionHandler: nil)
+    }
+
+    private func handleUpdate(_ body: Any) {
+        guard let dict = body as? [String: Any],
+              let token = dict["token"] as? String,
+              let key = dict["key"] as? String,
+              Brew.isValidToken(token) else { return }
+
+        let jsKey = key.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
+        let upgrade = CaskUpgrade()
+        upgrades[key] = upgrade
+        upgrade.run(token: token,
+            onLine: { [weak self] line in
+                let safe = line.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
+                self?.webView.evaluateJavaScript("window.__staleUpdateProgress && window.__staleUpdateProgress('\(jsKey)','\(safe)')", completionHandler: nil)
+            },
+            onDone: { [weak self] ok in
+                self?.upgrades[key] = nil
+                self?.webView.evaluateJavaScript("window.__staleUpdateDone && window.__staleUpdateDone('\(jsKey)',\(ok))", completionHandler: nil)
+            })
     }
 
     // ----- Notify when apps are stale (page calls staleNotify via a second handler if wired) -----
