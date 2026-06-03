@@ -291,7 +291,15 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
     // ----- Menu bar -----
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "🍂"
+        // Use a native SF Symbol (template image, tracks the menu-bar appearance) — not an emoji.
+        if let btn = statusItem.button {
+            if let img = NSImage(systemSymbolName: "leaf", accessibilityDescription: "Stale") {
+                img.isTemplate = true
+                btn.image = img
+            } else {
+                btn.title = "Stale"      // fallback on older systems
+            }
+        }
         let menu = NSMenu()
         menu.addItem(withTitle: "Open Stale", action: #selector(openFromMenu), keyEquivalent: "o").target = self
         menu.addItem(withTitle: "Scan Now", action: #selector(scanFromMenu), keyEquivalent: "r").target = self

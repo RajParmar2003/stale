@@ -5,6 +5,18 @@ All notable changes to Stale are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed — removed all emoji, added a real icon set
+- Replaced every UI emoji with **Lucide** icons (ISC license) — sharp inline-SVG strokes that
+  inherit text color and size. New `assets/js/icons.js` is the single source of truth
+  (`StaleIcons.icon/iconEl/hydrateIcons`); static markup uses `<i data-icon="…">` placeholders.
+- Affected: titlebar leaf, Add-to-Dock (pin), hero leaf, privacy (lock), search, Remind (bell),
+  New scan (rotate), the five group icons (leaf/refresh/check/help/store, color-tinted), chevrons,
+  brew (copy) + open (arrow-up-right) actions, up-to-date/updated/failed status marks.
+- Native menu-bar item now uses the **SF Symbol** `leaf` (template image) instead of an emoji.
+- Removed incidental emoji from the freshness headline and the `.ics` reminder summary.
+- Verified: a unicode sweep across all shipped source reports **zero emoji**.
+
+
 ### Fixed — audit pass (PR #5)
 - **App Store data failed in the browser (CORS):** Apple's iTunes `/lookup` endpoint omits
   `Access-Control-Allow-Origin`; `/search` includes it. Switched enrichment to `/search` and
