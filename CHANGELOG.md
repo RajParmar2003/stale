@@ -3,7 +3,20 @@
 All notable changes to Stale are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic versioning.
 
-## [1.1.0] — 2026-05-29
+## [Unreleased]
+
+### Changed — UI redesign (sharp / minimal)
+- **Typography:** adopted **Geist** + **Geist Mono** (SIL OFL), bundled in `assets/fonts/`
+  for offline parity. Replaces the rounded system font with a sharp neo-grotesque; tighter
+  tracking on headings, uppercase tracked micro-labels.
+- **Surfaces:** tighter corner radii (6/9/12px), hairline borders over heavy shadows, flat
+  graphite background (removed decorative radial gradients), retuned light + dark palettes.
+- **Actions:** primary buttons are now monochrome graphite (blue reserved for links/state).
+- **Copy:** trimmed hero, privacy line, and disclaimer for a to-the-point read.
+- New `docs/DESIGN.md` documents the system + the accessibility/second-pass audit.
+- Avatar markup now supports real `<img>` logos (wired in a later PR).
+
+
 
 ### Added
 - **Two distinct entities — Local and Web.** Stale now detects whether it's running as the

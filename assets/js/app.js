@@ -413,9 +413,8 @@ function render(groups, diff) {
   if (total === 0) dom.groups.innerHTML = `<div class="empty">No apps found in that list. Did the command finish copying before you pasted?</div>`;
 
   dom.disclaimer.innerHTML =
-    `Stale compares your versions against <strong>${fmtNum(state.casks.length)}</strong> apps in the Homebrew Cask database. ` +
-    `Matching is by app name and version comparison is a best-effort heuristic — <strong>always confirm before updating</strong>, ` +
-    `and prefer each app’s own “Check for Updates” or your package manager. Apps not in the database simply aren’t tracked by Homebrew; that doesn’t mean they’re out of date.`;
+    `Matched against <strong>${fmtNum(state.casks.length)}</strong> Homebrew apps. Version checks are best-effort — ` +
+    `<strong>confirm before updating</strong>. “Not tracked” means Homebrew doesn’t list it, not that it’s current.`;
 
   dom.intro.hidden = true;
   dom.results.hidden = false;
