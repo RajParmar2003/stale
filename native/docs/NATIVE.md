@@ -69,24 +69,29 @@ without Gatekeeper blocking it, you must notarize. You have the Apple Developer 
      --password "xxxx-xxxx-xxxx-xxxx"   # the app-specific password
    ```
 
-### Each release
+### Each release — one command
+
+Once the two one-time items above exist, the whole pipeline is automated:
+
 ```sh
-# 1. Build signed with the Developer ID cert + hardened runtime
-./build.sh --release
-
-# 2. Zip and submit for notarization (waits for the result)
-ditto -c -k --keepParent build/Stale.app build/Stale.zip
-xcrun notarytool submit build/Stale.zip --keychain-profile stale-notary --wait
-
-# 3. Staple the ticket so it works offline / first-launch
-xcrun stapler staple build/Stale.app
-xcrun stapler validate build/Stale.app
-
-# 4. (optional) package a .dmg for download
-hdiutil create -volname Stale -srcfolder build/Stale.app -ov -format UDZO build/Stale.dmg
+cd native
+./notarize.sh         # build+sign → zip → submit+wait → staple → verify → build/Stale.dmg
 ```
 
-After stapling, `Stale.app` (or the `.dmg`) opens on any Mac with no warnings.
+`notarize.sh` preflights both prerequisites (cert + notary profile) and prints exact fix-up
+instructions if either is missing, so it can't half-run. Output: a **notarized, stapled**
+`build/Stale.app` and a `build/Stale.dmg` that opens on any Mac with no Gatekeeper warning.
+
+<details><summary>What it runs under the hood (if you prefer manual steps)</summary>
+
+```sh
+./build.sh --release                                   # Developer ID + hardened runtime + --timestamp
+ditto -c -k --keepParent build/Stale.app build/Stale.zip
+xcrun notarytool submit build/Stale.zip --keychain-profile stale-notary --wait
+xcrun stapler staple build/Stale.app && xcrun stapler validate build/Stale.app
+hdiutil create -volname Stale -srcfolder build/Stale.app -ov -format UDZO build/Stale.dmg
+```
+</details>
 
 ### Or ship via Homebrew (fitting, since Stale reads Homebrew)
 Once a notarized `.dmg`/`.zip` is hosted (e.g. a GitHub Release), publish a Cask so users
