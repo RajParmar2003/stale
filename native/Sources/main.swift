@@ -187,28 +187,35 @@ enum Brew {
     }
 }
 
-/// Runs Homebrew in a hidden process, streaming output lines to a callback. Tries
-/// `upgrade --cask <token>` first; if the cask isn't brew-managed yet, falls back to
-/// `install --cask <token>` (which adopts/installs the latest). Nothing is shown in a
-/// Terminal window — progress is surfaced inside the app instead.
+/// Runs Homebrew in a hidden process, streaming output to a callback, and reports a
+/// structured OUTCOME — not just success/failure. This matters because for self-updating
+/// casks (Chrome, etc.) `brew upgrade` legitimately says "already up to date" and does
+/// nothing, even though the launched app binary may still be a version behind until it's
+/// relaunched. We surface that honestly instead of claiming "✓ updated".
 final class CaskUpgrade {
-
+    /// Outcome codes mirrored to JS via __staleUpdateDone(key, outcome).
+    ///   "upgraded"  — brew actually installed a newer version
+    ///   "current"   — brew reports it's already up to date (likely a self-updater; relaunch)
+    ///   "failed"    — brew errored
     func run(token: String,
              onLine: @escaping (String) -> Void,
-             onDone: @escaping (_ ok: Bool) -> Void) {
-        guard Brew.path() != nil, Brew.isValidToken(token) else { onDone(false); return }
-        runBrew(["upgrade", "--cask", token], onLine: onLine) { ok in
-            if ok { onDone(true); return }
+             onDone: @escaping (_ outcome: String) -> Void) {
+        guard Brew.path() != nil, Brew.isValidToken(token) else { onDone("failed"); return }
+        runBrew(["upgrade", "--cask", token], onLine: onLine) { ok, alreadyCurrent in
+            if ok && alreadyCurrent { onDone("current"); return }
+            if ok { onDone("upgraded"); return }
             // Upgrade can fail simply because the cask isn't installed via brew. Adopt it.
             onLine("· not brew-managed yet — installing latest…")
-            self.runBrew(["install", "--cask", "--adopt", token], onLine: onLine, onDone: onDone)
+            self.runBrew(["install", "--cask", "--adopt", token], onLine: onLine) { ok2, current2 in
+                onDone(ok2 ? (current2 ? "current" : "upgraded") : "failed")
+            }
         }
     }
 
     private func runBrew(_ args: [String],
                          onLine: @escaping (String) -> Void,
-                         onDone: @escaping (_ ok: Bool) -> Void) {
-        guard let brew = Brew.path() else { onDone(false); return }
+                         onDone: @escaping (_ ok: Bool, _ alreadyCurrent: Bool) -> Void) {
+        guard let brew = Brew.path() else { onDone(false, false); return }
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: brew)
         proc.arguments = args
@@ -217,21 +224,25 @@ final class CaskUpgrade {
         env["HOMEBREW_NO_ENV_HINTS"] = "1"
         proc.environment = env
 
+        var sawAlreadyCurrent = false
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError = pipe
         pipe.fileHandleForReading.readabilityHandler = { fh in
             let data = fh.availableData
             guard !data.isEmpty, let s = String(data: data, encoding: .utf8) else { return }
+            if s.contains("already installed") || s.contains("already up") || s.contains("Not upgrading") {
+                sawAlreadyCurrent = true
+            }
             for line in s.split(separator: "\n", omittingEmptySubsequences: true) {
                 DispatchQueue.main.async { onLine(String(line)) }
             }
         }
         proc.terminationHandler = { p in
             pipe.fileHandleForReading.readabilityHandler = nil
-            DispatchQueue.main.async { onDone(p.terminationStatus == 0) }
+            DispatchQueue.main.async { onDone(p.terminationStatus == 0, sawAlreadyCurrent) }
         }
-        do { try proc.run() } catch { onDone(false) }
+        do { try proc.run() } catch { onDone(false, false) }
     }
 }
 
@@ -388,9 +399,9 @@ final class AppController: NSObject, NSApplicationDelegate, WKScriptMessageHandl
                 let safe = line.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
                 self?.webView.evaluateJavaScript("window.__staleUpdateProgress && window.__staleUpdateProgress('\(jsKey)','\(safe)')", completionHandler: nil)
             },
-            onDone: { [weak self] ok in
+            onDone: { [weak self] outcome in
                 self?.upgrades[key] = nil
-                self?.webView.evaluateJavaScript("window.__staleUpdateDone && window.__staleUpdateDone('\(jsKey)',\(ok))", completionHandler: nil)
+                self?.webView.evaluateJavaScript("window.__staleUpdateDone && window.__staleUpdateDone('\(jsKey)','\(outcome)')", completionHandler: nil)
             })
     }
 

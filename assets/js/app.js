@@ -839,17 +839,31 @@ function setupNative() {
     const el = updateStatusEl(key);
     if (el) { el.classList.add("running"); el.textContent = trimProgress(line); }
   };
-  window.__staleUpdateDone = (key, ok) => {
+  // outcome: "upgraded" | "current" | "failed" (legacy: true/false also handled)
+  window.__staleUpdateDone = (key, outcome) => {
+    if (outcome === true) outcome = "upgraded";
+    if (outcome === false) outcome = "failed";
     const row = dom.groups.querySelector(`.app[data-key="${cssEscape(key)}"]`);
     const el = updateStatusEl(key);
+    const ok = outcome !== "failed";
     if (el) {
-      el.classList.remove("running");
-      el.classList.add(ok ? "ok" : "err");
-      el.innerHTML = ok ? `${ic("circle-check","tiny")} updated` : `${ic("x","tiny")} failed — try the command`;
+      el.classList.remove("running", "ok", "err");
+      if (outcome === "upgraded") {
+        el.classList.add("ok");
+        el.innerHTML = `${ic("circle-check","tiny")} updated`;
+      } else if (outcome === "current") {
+        el.classList.add("ok");
+        el.innerHTML = `${ic("circle-check","tiny")} already current in Homebrew — relaunch the app to apply its own update`;
+      } else {
+        el.classList.add("err");
+        el.innerHTML = `${ic("x","tiny")} failed — try the command`;
+      }
     }
     const btn = row && row.querySelector(".update-btn");
     if (btn) { btn.disabled = false; btn.textContent = ok ? "Done" : "Retry"; if (ok) btn.classList.add("done"); }
-    toast(ok ? "Update complete" : "Update failed — see the app’s own updater");
+    toast(outcome === "upgraded" ? "Update complete"
+        : outcome === "current" ? "Already current in Homebrew — relaunch the app to finish"
+        : "Update failed — see the app’s own updater");
   };
   // ask Swift whether Homebrew is installed (gates one-click Update)
   try { window.webkit.messageHandlers.staleBrewCheck.postMessage("check"); } catch {}
