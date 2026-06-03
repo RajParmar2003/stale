@@ -634,8 +634,15 @@ function applyFilter(q) {
 function registerSW() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol === "file:") return;
-  if (new URLSearchParams(location.search).has("nosw")) {     // dev escape hatch
-    navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+  // In the native app the UI is bundled and served locally, so a service worker adds no value
+  // and risks serving a STALE UI from a previous build's cache. Disable it there and purge any
+  // leftover registration/caches so every launch shows the version that shipped with the app.
+  const noSW = IS_NATIVE
+    || location.protocol === "stale:"
+    || new URLSearchParams(location.search).has("nosw");
+  if (noSW) {
+    navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
+    if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {});
     return;
   }
   navigator.serviceWorker.register("service-worker.js").catch(() => {});
