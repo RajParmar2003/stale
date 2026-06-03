@@ -10,7 +10,7 @@
    independent offline shells, even in the unlikely case they share an origin. */
 const BUILD = (self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1" || self.location.hostname === "[::1]")
   ? "local" : "web";
-const CACHE = "stale-shell-" + BUILD + "-v1";
+const CACHE = "stale-shell-" + BUILD + "-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -45,18 +45,31 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // Let the Homebrew API go straight to the network (app handles offline via IndexedDB).
-  if (url.hostname.endsWith("formulae.brew.sh")) return;
+  // Only handle our own origin. External hosts (Homebrew API, iTunes API, App Store
+  // artwork) go straight to the network so we never serve stale data or cache 15 MB.
+  if (url.origin !== self.location.origin) return;
 
-  // App shell: cache-first, with a background refresh for same-origin assets.
+  // Code (HTML/JS/CSS) → network-first: always get the latest, fall back to cache offline.
+  // This prevents the classic "stale JS after an update" bug.
+  const isCode = /\.(html|js|css)$/.test(url.pathname) || url.pathname === "/" || url.pathname.endsWith("/");
+  if (isCode) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Everything else (icons, fonts, manifest) → cache-first for speed, refresh in background.
   event.respondWith(
     caches.match(req).then((cached) => {
       const network = fetch(req)
         .then((res) => {
-          if (res && res.ok && url.origin === self.location.origin) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
+          if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
           return res;
         })
         .catch(() => cached);

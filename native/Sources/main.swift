@@ -116,7 +116,9 @@ final class IconSchemeHandler: NSObject, WKURLSchemeHandler {
 // MARK: - App scanning (the thing the browser can't do)
 
 enum Scanner {
-    /// Runs `system_profiler SPApplicationsDataType -json` and returns the raw JSON string.
+    /// Runs `system_profiler SPApplicationsDataType -json`, then augments each app entry
+    /// with its CFBundleIdentifier (read from the bundle's Info.plist) so the web layer
+    /// can look apps up precisely on the App Store. Returns the augmented JSON string.
     static func scan() -> Result<String, Error> {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
@@ -129,12 +131,34 @@ enum Scanner {
             // Read before waitUntilExit to avoid deadlock on large output.
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             proc.waitUntilExit()
-            guard proc.terminationStatus == 0, let s = String(data: data, encoding: .utf8) else {
+            guard proc.terminationStatus == 0 else {
                 return .failure(NSError(domain: "Stale", code: Int(proc.terminationStatus),
                                         userInfo: [NSLocalizedDescriptionKey: "system_profiler failed"]))
             }
+            let augmented = augmentBundleIds(data) ?? data
+            guard let s = String(data: augmented, encoding: .utf8) else {
+                return .failure(NSError(domain: "Stale", code: -1,
+                                        userInfo: [NSLocalizedDescriptionKey: "encode failed"]))
+            }
             return .success(s)
         } catch { return .failure(error) }
+    }
+
+    /// Inject "bundle_id" into each app dict by reading <path>/Contents/Info.plist.
+    /// Returns nil on any parse problem (caller falls back to the raw JSON).
+    private static func augmentBundleIds(_ data: Data) -> Data? {
+        guard var root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              var apps = root["SPApplicationsDataType"] as? [[String: Any]] else { return nil }
+        for i in apps.indices {
+            guard let path = apps[i]["path"] as? String else { continue }
+            let plist = path + "/Contents/Info.plist"
+            if let dict = NSDictionary(contentsOfFile: plist),
+               let bid = dict["CFBundleIdentifier"] as? String {
+                apps[i]["bundle_id"] = bid
+            }
+        }
+        root["SPApplicationsDataType"] = apps
+        return try? JSONSerialization.data(withJSONObject: root)
     }
 }
 

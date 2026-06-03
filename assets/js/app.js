@@ -206,7 +206,8 @@ function parseInput(raw) {
     if (!name) continue;
     const path = a.path || "";
     const file = (path.split("/").pop() || (name + ".app"));
-    apps.push({ name, file, version: a.version || null, source: a.obtained_from || "unknown", path });
+    apps.push({ name, file, version: a.version || null, source: a.obtained_from || "unknown", path,
+                bundleId: a.bundle_id || null });   // bundle_id injected by the native scanner
   }
   return { apps: dedupe(apps), error: null };
 }
@@ -330,9 +331,9 @@ function appRow(entry) {
   const { app, cask, status, latest, severity: sev } = entry;
   const color = avatarColor(app.name);
   const letter = (app.name.match(/[A-Za-z0-9]/) || ["?"])[0].toUpperCase();
-  // Real logo when we can get one (native reads the .app icon); otherwise a colored
-  // initial. The <img> falls back to the letter tile if it errors out.
-  const icon = iconURL(app);
+  // Real logo when we can get one (native reads the .app icon; App Store art for MAS apps);
+  // otherwise a colored initial. The <img> falls back to the letter tile if it errors out.
+  const icon = entry.artworkUrl || iconURL(app);
   const avatar = icon
     ? `<div class="avatar has-img" style="background:${color}">` +
         `<img src="${esc(icon)}" alt="" loading="lazy" decoding="async" ` +
@@ -350,7 +351,18 @@ function appRow(entry) {
   } else if (status === "noversion") {
     ver = `<div class="ver">version unknown · matched ${esc(cask.token)}</div>`;
   } else if (status === "mas") {
-    ver = `<div class="ver">${esc(app.version || "")} · updates in the App Store</div>`;
+    // Enriched asynchronously by enrichAppStore(); shows current → latest once known.
+    if (entry.masLatest && cmpVer(entry.masLatest, app.version) === 1) {
+      const masSev = severity(app.version, entry.masLatest);
+      const sevTag = masSev !== "unknown" ? `<span class="sev ${masSev}">${masSev}</span>` : "";
+      ver = `<div class="ver"><span class="old">${esc(app.version || "?")}</span><span class="arrow">→</span><span class="new">${esc(entry.masLatest)}</span>${sevTag} <span class="tag">App Store</span></div>`;
+    } else if (entry.masLatest) {
+      ver = `<div class="ver same"><span class="cur">✓ ${esc(app.version || "")}</span> · up to date · App Store</div>`;
+    } else if (entry.masUnchecked) {
+      ver = `<div class="ver">${esc(app.version || "")} · manage in the App Store</div>`;
+    } else {
+      ver = `<div class="ver">${esc(app.version || "")} · checking App Store…</div>`;
+    }
   } else {
     ver = `<div class="ver">${esc(app.version || "version unknown")}</div>`;
   }
@@ -363,12 +375,19 @@ function appRow(entry) {
     if (cask.homepage)
       right.push(`<a class="open" href="${esc(cask.homepage)}" target="_blank" rel="noopener noreferrer" title="Open ${esc(cask.name?.[0]||"homepage")}">↗</a>`);
   }
-  return `<div class="app" data-name="${esc((app.name||"").toLowerCase())}">
+  // App Store row: link out to its listing once we have it
+  if (status === "mas" && entry.masUrl) {
+    right.push(`<a class="open" href="${esc(entry.masUrl)}" target="_blank" rel="noopener noreferrer" title="View in the App Store">↗</a>`);
+  }
+  return `<div class="app" data-name="${esc((app.name||"").toLowerCase())}" data-key="${esc(rowKey(app))}">
     ${avatar}
     <div class="meta"><div class="name">${esc(app.name)}</div>${ver}</div>
     <div class="right">${right.join("")}</div>
   </div>`;
 }
+
+/* stable per-row key for in-place updates after async enrichment */
+function rowKey(app) { return norm(app.file) || norm(app.name); }
 
 /* Real app-logo URL for a row, or null to fall back to the colored initial.
    - Native: the Swift app serves each app's real icon over the stale-icon:// scheme,
@@ -453,7 +472,92 @@ function runCheck(apps, { diff = true } = {}) {
   state.lastScan = { ts: Date.now(), apps: apps.map(({ name, file, version, source }) => ({ name, file, version, source })), score: freshnessScore(groups) };
   kvSet("lastScan", state.lastScan);
   dom.clearBtn.hidden = false;
+  enrichAppStore(groups);            // async: fill in current→latest + artwork for MAS apps
   return true;
+}
+
+/* ---------- App Store enrichment (iTunes Lookup API) ----------
+   Mac App Store apps aren't in Homebrew, so the base scan can't show their latest
+   version. Apple's public iTunes API returns the current version + artwork. We look
+   each up (by bundleId in native, by name on web), cache results (7-day TTL), update
+   the row in place, and re-tally the summary. Best-effort: failures leave the row as-is. */
+const ITUNES_TTL = 7 * 24 * 60 * 60 * 1000;
+async function itunesLookup(app) {
+  const key = "itunes:" + rowKey(app);
+  try {
+    const cached = await kvGet(key);
+    if (cached && (Date.now() - cached.ts) < ITUNES_TTL) return cached.data;
+  } catch {}
+  let data = null;
+  try {
+    let url;
+    if (app.bundleId) {
+      url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(app.bundleId)}&country=us&entity=macSoftware`;
+    } else {
+      url = `https://itunes.apple.com/search?term=${encodeURIComponent(app.name)}&entity=macSoftware&limit=3&country=us`;
+    }
+    const res = await fetch(url);
+    if (res.ok) {
+      const j = await res.json();
+      const results = j.results || [];
+      // by name: pick the closest title match
+      const pick = app.bundleId ? results[0]
+        : results.find(r => norm(r.trackName) === norm(app.name)) || results[0];
+      if (pick && pick.version) {
+        data = { version: pick.version, art: pick.artworkUrl512 || pick.artworkUrl100 || null,
+                 url: pick.trackViewUrl || null };
+      }
+    }
+  } catch {}
+  kvSet(key, { ts: Date.now(), data });   // cache even null to avoid hammering on misses
+  return data;
+}
+
+async function enrichAppStore(groups) {
+  const mas = groups.mas || [];
+  if (!mas.length) return;
+  let movedToAction = 0;
+  // small concurrency cap to be polite to the API
+  const queue = mas.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const entry = queue.shift();
+      const info = await itunesLookup(entry.app);
+      if (!info) { entry.masUnchecked = true; updateRow(entry); continue; }   // clear "checking…" state
+      entry.masLatest = info.version;
+      entry.masUrl = info.url;
+      if (info.art) entry.artworkUrl = info.art;
+      updateRow(entry);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  // annotate the MAS group header with how many are actually behind
+  const behind = mas.filter(e => e.masLatest && cmpVer(e.masLatest, e.app.version) === 1).length;
+  const masGroup = dom.groups.querySelector(".group.mas > summary");
+  if (masGroup) {
+    let note = masGroup.querySelector(".mas-note");
+    if (!note) {
+      note = document.createElement("span");
+      note.className = "mas-note tag";
+      masGroup.querySelector(".chev").before(note);
+    }
+    note.textContent = behind > 0 ? `${behind} update${behind>1?"s":""} available` : "all current";
+    note.classList.toggle("warn", behind > 0);
+  }
+}
+
+/* re-render a single row in place after enrichment */
+function updateRow(entry) {
+  const key = rowKey(entry.app);
+  const el = dom.groups.querySelector(`.app[data-key="${cssEscape(key)}"]`);
+  if (!el) return;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = appRow(entry);
+  const fresh = tmp.firstElementChild;
+  el.replaceWith(fresh);
+}
+function cssEscape(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
 }
 
 function copyText(text, msg) {
@@ -513,6 +617,10 @@ function applyFilter(q) {
 function registerSW() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol === "file:") return;
+  if (new URLSearchParams(location.search).has("nosw")) {     // dev escape hatch
+    navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+    return;
+  }
   navigator.serviceWorker.register("service-worker.js").catch(() => {});
 }
 function setupInstall() {
@@ -636,7 +744,7 @@ const SAMPLE = { SPApplicationsDataType: [
   { _name: "1Password", version: "8.10.0", path: "/Applications/1Password.app", obtained_from: "identified_developer" },
   { _name: "Spotify", version: "1.2.20.1216", path: "/Applications/Spotify.app", obtained_from: "identified_developer" },
   { _name: "Figma", version: "124.0.0", path: "/Applications/Figma.app", obtained_from: "identified_developer" },
-  { _name: "Things3", version: "3.19.0", path: "/Applications/Things3.app", obtained_from: "mac_app_store" },
+  { _name: "Things3", version: "3.19.0", path: "/Applications/Things3.app", obtained_from: "mac_app_store", bundle_id: "com.culturedcode.ThingsMac" },
   { _name: "AcmeCorp Internal Tool", version: "1.0.2", path: "/Applications/AcmeCorp Internal Tool.app", obtained_from: "identified_developer" },
   { _name: "Safari", version: "17.2", path: "/Applications/Safari.app", obtained_from: "apple" },
 ] };
