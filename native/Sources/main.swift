@@ -65,11 +65,20 @@ final class WebAssetSchemeHandler: NSObject, WKURLSchemeHandler {
 
 /// Serves real app icons over stale-icon://icon?path=<app path>. The web layer uses these
 /// as <img> sources, so each visible row shows its genuine logo. Icons are rendered to PNG
-/// on demand and cached in-process. Only paths under the standard app directories are served
-/// (defense-in-depth: a renderer can't coerce this into reading arbitrary files as images).
+/// on demand and cached in-process.
+///
+/// Security: we serve an icon only for an existing `.app` **bundle** (a directory whose name
+/// ends in .app) with no `..` traversal in the path. That covers apps wherever they actually
+/// live — /Applications, ~/Applications, ~/Downloads, ~/Desktop, etc. — while refusing to read
+/// arbitrary files (e.g. /etc/passwd) as images.
 final class IconSchemeHandler: NSObject, WKURLSchemeHandler {
     private var cache = [String: Data]()
-    private let allowedPrefixes = ["/Applications", "/System/Applications", "/System/Library", "/Library"]
+
+    private func isAllowed(_ path: String) -> Bool {
+        guard !path.contains(".."), path.lowercased().hasSuffix(".app") else { return false }
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
+    }
 
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let url = task.request.url,
@@ -94,8 +103,7 @@ final class IconSchemeHandler: NSObject, WKURLSchemeHandler {
 
     private func iconPNG(for appPath: String) -> Data? {
         if let hit = cache[appPath] { return hit }
-        guard allowedPrefixes.contains(where: { appPath.hasPrefix($0) }),
-              FileManager.default.fileExists(atPath: appPath) else { return nil }
+        guard isAllowed(appPath) else { return nil }
         let img = NSWorkspace.shared.icon(forFile: appPath)
         let side: CGFloat = 64
         let target = NSSize(width: side, height: side)
