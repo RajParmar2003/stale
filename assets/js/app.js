@@ -64,6 +64,7 @@ const state = {
   lastScan: null,     // {ts, apps:[{name,file,version,source}], score}
   groups: null,       // current rendered grouping
   deferredPrompt: null,
+  brewAvailable: false, // native: is Homebrew installed? (enables one-click Update)
 };
 
 /* ---------- 2. IndexedDB key/value store ---------- */
@@ -368,10 +369,17 @@ function appRow(entry) {
   }
   const right = [];
   if (cask) {
-    if (cask.auto_updates && (status === "outdated" || status === "differs"))
+    const actionable = status === "outdated" || status === "differs";
+    if (cask.auto_updates && actionable)
       right.push(`<span class="tag" title="This app updates itself — usually no action needed">self-updates</span>`);
-    if (status === "outdated" || status === "differs")
-      right.push(`<span class="pill" data-copy="brew install --cask ${esc(cask.token)}" title="Copy Homebrew command">brew ⧉</span>`);
+    if (actionable) {
+      // Native + Homebrew available → one-click Update; otherwise copy the command.
+      if (IS_NATIVE && state.brewAvailable) {
+        right.push(`<button class="pill update-btn" data-update="${esc(cask.token)}" data-key="${esc(rowKey(app))}" title="Update with Homebrew">Update</button>`);
+      } else {
+        right.push(`<span class="pill" data-copy="brew install --cask ${esc(cask.token)}" title="Copy Homebrew command">brew ⧉</span>`);
+      }
+    }
     if (cask.homepage)
       right.push(`<a class="open" href="${esc(cask.homepage)}" target="_blank" rel="noopener noreferrer" title="Open ${esc(cask.name?.[0]||"homepage")}">↗</a>`);
   }
@@ -657,8 +665,10 @@ function wireEvents() {
   dom.remindBtn.addEventListener("click", downloadReminder);
   dom.search.addEventListener("input", (e) => applyFilter(e.target.value));
 
-  // delegated clicks inside results: brew pill, batch copy, summary jump
+  // delegated clicks inside results: update button, brew pill, batch copy, summary jump
   dom.results.addEventListener("click", (e) => {
+    const upd = e.target.closest(".update-btn[data-update]");
+    if (upd) return startUpdate(upd);
     const pill = e.target.closest(".pill[data-copy]");
     if (pill) return copyText(pill.dataset.copy, "Copied: " + pill.dataset.copy);
     const batch = e.target.closest("[data-batch]");
@@ -797,6 +807,57 @@ function setupNative() {
   // wire the native scan button (revealed by CSS in native mode)
   const btn = $("scanBtn");
   if (btn) btn.addEventListener("click", () => window.__staleRequestScan());
+
+  // ---- one-click update bridge (Swift runs brew in a hidden process) ----
+  window.__staleBrewAvailable = (yes) => { state.brewAvailable = !!yes; if (state.groups) render(state.groups, null); };
+  window.__staleUpdateProgress = (key, line) => {
+    const el = updateStatusEl(key);
+    if (el) { el.classList.add("running"); el.textContent = trimProgress(line); }
+  };
+  window.__staleUpdateDone = (key, ok) => {
+    const row = dom.groups.querySelector(`.app[data-key="${cssEscape(key)}"]`);
+    const el = updateStatusEl(key);
+    if (el) {
+      el.classList.remove("running");
+      el.classList.add(ok ? "ok" : "err");
+      el.textContent = ok ? "✓ updated" : "✗ failed — try the command";
+    }
+    const btn = row && row.querySelector(".update-btn");
+    if (btn) { btn.disabled = false; btn.textContent = ok ? "Done" : "Retry"; if (ok) btn.classList.add("done"); }
+    toast(ok ? "Update complete" : "Update failed — see the app’s own updater");
+  };
+  // ask Swift whether Homebrew is installed (gates one-click Update)
+  try { window.webkit.messageHandlers.staleBrewCheck.postMessage("check"); } catch {}
+}
+
+/* progress line cleanup: brew prints a lot; show the meaningful tail */
+function trimProgress(line) {
+  const s = String(line).replace(/\s+/g, " ").trim();
+  return s.length > 48 ? "…" + s.slice(-47) : s;
+}
+function updateStatusEl(key) {
+  const row = dom.groups.querySelector(`.app[data-key="${cssEscape(key)}"]`);
+  if (!row) return null;
+  let el = row.querySelector(".update-status");
+  if (!el) {
+    el = document.createElement("span");
+    el.className = "update-status";
+    (row.querySelector(".meta") || row).appendChild(el);
+  }
+  return el;
+}
+function startUpdate(btn) {
+  const token = btn.dataset.update, key = btn.dataset.key;
+  if (!token || !key) return;
+  btn.disabled = true; btn.textContent = "Updating…";
+  const el = updateStatusEl(key);
+  if (el) { el.className = "update-status running"; el.textContent = "starting…"; }
+  try {
+    window.webkit.messageHandlers.staleUpdate.postMessage({ token, key });
+  } catch {
+    btn.disabled = false; btn.textContent = "Update";
+    toast("Update unavailable — copy the brew command instead.");
+  }
 }
 
 /* boot */

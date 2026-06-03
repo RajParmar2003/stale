@@ -5,6 +5,18 @@ All notable changes to Stale are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added — one-click background updates (native)
+- In the native app, outdated apps show an **Update** button that runs
+  `brew upgrade --cask <token>` in a **hidden background process** — no Terminal window.
+  Live progress streams into the row; finishes with ✓ updated / ✗ failed.
+- **Fallback chain:** if the cask isn't brew-managed, it retries with
+  `install --cask --adopt` (adopts the manually-installed app). If Homebrew isn't installed
+  at all, the UI shows the copy-command pill instead (gated by a `staleBrewCheck`).
+- **Security:** cask tokens are validated against `^[a-z0-9][a-z0-9@._-]*$` before use;
+  args are passed as an array (no shell). Verified injection/traversal probes are rejected
+  (`foo; rm -rf /`, `../evil` → rejected) and the streaming process path works end-to-end.
+- Web/Local entities keep the copy-to-clipboard flow (the one that already worked).
+
 ### Added — Mac App Store version data
 - App Store apps now show **current → latest** (and a severity badge), not just "updates in
   the App Store". Data comes from Apple's public **iTunes Lookup/Search API**, fetched
