@@ -12,6 +12,16 @@ A free, client-side replacement for [MacUpdater](https://tidbits.com/2026/01/09/
 
 ---
 
+## Design evolution
+
+![Before and after — system font + emoji vs. Geist + Lucide icons](docs/assets/before-after.png)
+
+The current UI (right) uses the **Geist** typeface, **Lucide** SVG icons, a monochrome graphite
+action color, and sharp hairline surfaces. Regenerate this comparison against any past commit
+with [`scripts/compare.sh`](scripts/compare.sh).
+
+---
+
 ## Why this exists
 
 In January 2026, **MacUpdater** — the go-to utility for keeping non-App-Store Mac apps current — was discontinued, and *"no single app currently replicates everything MacUpdater did"* ([TidBITS](https://tidbits.com/2026/01/09/macupdater-shuts-down-leaving-users-searching-for-alternatives/), [TheSweetBits](https://thesweetbits.com/macupdater-discontinued-what-happens-now-and-what-are-the-alternatives/)). Every alternative (Latest, MacUpdate Desktop, App Cleaner) is a **native install**. There was no **browser-based, zero-install, privacy-first** option.
