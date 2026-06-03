@@ -5,6 +5,17 @@ All notable changes to Stale are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Fixed — audit pass (PR #5)
+- **App Store data failed in the browser (CORS):** Apple's iTunes `/lookup` endpoint omits
+  `Access-Control-Allow-Origin`; `/search` includes it. Switched enrichment to `/search` and
+  disambiguate by bundleId → exact name → prefix. Verified Things3 now renders
+  `3.19.0 → 3.22.11` with its real App Store icon.
+- **Engine is now headless-safe:** `window.Stale` is assigned before `boot()`, and
+  `setDb`/`applyBuildIdentity`/`checkBtn` tolerate a missing app DOM — enabling the test suite.
+- Added `tests/test.html` (29 assertions over the real engine) + `tests/apps.fixture.json`
+  (real-data regression incl. the user's updated LibreOffice and a duplicate entry). 29/29 pass.
+- Added `docs/AUDIT.md` documenting the review, the bugs found/fixed, and verified mechanisms.
+
 ### Added — one-click background updates (native)
 - In the native app, outdated apps show an **Update** button that runs
   `brew upgrade --cask <token>` in a **hidden background process** — no Terminal window.

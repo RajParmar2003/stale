@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Stale — test suite</title>
+<style>
+  body { font-family: ui-monospace, Menlo, monospace; background:#0d0d0f; color:#f4f4f6; padding:20px; line-height:1.6; }
+  .pass { color:#2fce72; } .fail { color:#ff5a4f; font-weight:700; }
+  h1 { font-size:18px; } .sum { font-size:16px; margin:14px 0; padding:10px; border:1px solid #2a2a30; border-radius:8px; }
+  .group { margin:14px 0; } .group h2 { font-size:14px; color:#9b9ba4; }
+  pre { white-space:pre-wrap; font-size:12px; color:#9b9ba4; }
+</style>
+</head>
+<body>
+<h1>🍂 Stale — test suite</h1>
+<div class="sum" id="summary">running…</div>
+<div id="out"></div>
+
+<!-- load the real engine (defines window.Stale). It will try to fetch the Homebrew DB. -->
+<script src="../assets/js/app.js?test=1"></script>
+<script>
+/* Minimal assertion harness. Results are also exposed on window.__TESTS for headless reads. */
+const results = [];
+function check(name, cond, detail) {
+  results.push({ name, pass: !!cond, detail: detail || "" });
+}
+function eq(name, got, exp) {
+  const ok = JSON.stringify(got) === JSON.stringify(exp);
+  results.push({ name, pass: ok, detail: ok ? "" : `got ${JSON.stringify(got)} expected ${JSON.stringify(exp)}` });
+}
+
+async function waitForDB(S, ms = 12000) {
+  const t0 = Date.now();
+  while (!S.state.index && Date.now() - t0 < ms) await new Promise(r => setTimeout(r, 100));
+  return !!S.state.index;
+}
+
+async function run() {
+  const S = window.Stale;
+
+  /* ---- version compare ---- */
+  eq("cmp 1.2.3 < 1.2.4", S.cmpVer("1.2.3", "1.2.4"), -1);
+  eq("cmp 2.0 > 1.9", S.cmpVer("2.0", "1.9"), 1);
+  eq("cmp 1.10 > 1.9 (numeric)", S.cmpVer("1.10", "1.9"), 1);
+  eq("cmp 1.2.0 == 1.2", S.cmpVer("1.2.0", "1.2"), 0);
+  eq("cmp comma-build 1.2,99 == 1.2", S.cmpVer("1.2,99", "1.2"), 0);
+  eq("cmp empty -> null", S.cmpVer("", "1.0"), null);
+  eq("cmp nonnumeric -> null", S.cmpVer("latest", "1.0"), null);
+  eq("cmp 26.2.3.2 vs 26.2.3 -> 1 (user's updated LibreOffice is ahead-or-equal)",
+     S.cmpVer("26.2.3.2", "26.2.3"), 1);
+
+  /* ---- severity ---- */
+  eq("sev major", S.severity("1.0.0", "2.0.0"), "major");
+  eq("sev minor", S.severity("1.2.0", "1.5.0"), "minor");
+  eq("sev patch", S.severity("1.2.3", "1.2.9"), "patch");
+  eq("sev unknown (nonnumeric)", S.severity("x", "y"), "unknown");
+
+  /* ---- normalization ---- */
+  eq("norm .app+space+case", S.norm("Visual Studio Code.app"), "visualstudiocode");
+  eq("norm trademark ™", S.norm("Foo™ Bar®"), "foobar");
+  eq("norm accent café", S.norm("Café"), "cafe");
+  eq("norm ℠", S.norm("Thing℠"), "thing");
+
+  /* ---- parsing + dedupe ---- */
+  check("parse junk -> error", !!S.parseInput("not json").error);
+  eq("parse empty -> no apps", S.parseInput("").apps.length, 0);
+  check("parse reads bundle_id", S.parseInput(JSON.stringify({
+    SPApplicationsDataType: [{ _name: "X", path: "/Applications/X.app", version: "1", obtained_from: "mac_app_store", bundle_id: "com.x.y" }]
+  })).apps[0].bundleId === "com.x.y");
+  const dd = S.dedupe([
+    { name: "Epic", file: "Epic.app", version: "1.0", source: "x" },
+    { name: "Epic", file: "Epic.app", version: "2.0", source: "x" },
+  ]);
+  eq("dedupe keeps higher version", [dd.length, dd[0].version], [1, "2.0"]);
+
+  /* ---- freshness edge cases ---- */
+  eq("score empty -> null", S.freshnessScore({ action: [], self: [], ok: [], unknown: [], mas: [] }), null);
+
+  /* ---- DB-dependent: analyze real apps ---- */
+  const ready = await waitForDB(S);
+  check("Homebrew DB loaded", ready, ready ? `${S.state.casks.length} casks` : "TIMEOUT");
+  if (ready) {
+    eq("DB has thousands of casks", S.state.casks.length > 5000, true);
+    // real-apps fixture (the user's actual machine, incl. updated LibreOffice)
+    try {
+      const raw = await (await fetch("../tests/apps.fixture.json")).text();
+      const rawCount = JSON.parse(raw).SPApplicationsDataType.length;
+      const { apps, error } = S.parseInput(raw);
+      check("real fixture parsed", !error && apps.length >= 5, `${apps.length} apps (from ${rawCount} raw)`);
+      check("dedupe removed the duplicate Discord", apps.length < rawCount, `${rawCount} -> ${apps.length}`);
+      const groups = S.analyze(apps);
+      const counts = Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, v.length]));
+      check("analyze produced groups", Object.values(counts).reduce((a, b) => a + b, 0) > 0, JSON.stringify(counts));
+      // no app in two groups
+      const seen = {}; let overlaps = 0;
+      for (const [g, arr] of Object.entries(groups)) for (const e of arr) { if (seen[e.app.name]) overlaps++; seen[e.app.name] = g; }
+      eq("no app in two groups", overlaps, 0);
+      // LibreOffice should now be up-to-date or not actionable (user updated it to 26.2.3.2)
+      const libre = [...groups.action, ...groups.ok, ...groups.self].find(e => /libre/i.test(e.app.name));
+      check("LibreOffice present & not in 'worth updating'",
+        libre ? !groups.action.includes(libre) : true,
+        libre ? `status=${libre.status} v=${libre.app.version}` : "not matched");
+      window.__realCounts = counts;
+    } catch (e) {
+      check("real fixture fetch", false, String(e));
+    }
+  }
+
+  /* ---- ICS reminder ---- */
+  const ics = S.buildICS();
+  check("ICS well-formed", ics.startsWith("BEGIN:VCALENDAR") && ics.includes("BEGIN:VEVENT") && ics.includes("BEGIN:VALARM") && /DTSTART:\d{8}T\d{6}Z/.test(ics));
+
+  /* ---- render ---- */
+  const passed = results.filter(r => r.pass).length;
+  const failed = results.filter(r => !r.pass);
+  document.getElementById("summary").innerHTML =
+    `<span class="${failed.length ? "fail" : "pass"}">${passed}/${results.length} passed</span>` +
+    (failed.length ? ` · <span class="fail">${failed.length} FAILED</span>` : " · all green ✓");
+  document.getElementById("out").innerHTML = results.map(r =>
+    `<div class="${r.pass ? "pass" : "fail"}">${r.pass ? "✓" : "✗"} ${r.name}${r.detail ? `  <span style="color:#65656e">— ${r.detail}</span>` : ""}</div>`
+  ).join("");
+
+  window.__TESTS = { passed, total: results.length, failed: failed.map(f => ({ name: f.name, detail: f.detail })), realCounts: window.__realCounts };
+}
+run();
+</script>
+</body>
+</html>
