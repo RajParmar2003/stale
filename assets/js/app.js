@@ -330,6 +330,15 @@ function appRow(entry) {
   const { app, cask, status, latest, severity: sev } = entry;
   const color = avatarColor(app.name);
   const letter = (app.name.match(/[A-Za-z0-9]/) || ["?"])[0].toUpperCase();
+  // Real logo when we can get one (native reads the .app icon); otherwise a colored
+  // initial. The <img> falls back to the letter tile if it errors out.
+  const icon = iconURL(app);
+  const avatar = icon
+    ? `<div class="avatar has-img" style="background:${color}">` +
+        `<img src="${esc(icon)}" alt="" loading="lazy" decoding="async" ` +
+        `onerror="this.remove();this.parentNode.classList.remove('has-img');this.parentNode.textContent='${esc(letter)}'">` +
+      `</div>`
+    : `<div class="avatar" style="background:${color}" aria-hidden="true">${esc(letter)}</div>`;
   let ver;
   if (status === "outdated" || status === "differs") {
     const sevTag = (status === "outdated" && sev && sev !== "unknown") ? `<span class="sev ${sev}">${sev}</span>` : "";
@@ -355,10 +364,22 @@ function appRow(entry) {
       right.push(`<a class="open" href="${esc(cask.homepage)}" target="_blank" rel="noopener noreferrer" title="Open ${esc(cask.name?.[0]||"homepage")}">↗</a>`);
   }
   return `<div class="app" data-name="${esc((app.name||"").toLowerCase())}">
-    <div class="avatar" style="background:${color}" aria-hidden="true">${esc(letter)}</div>
+    ${avatar}
     <div class="meta"><div class="name">${esc(app.name)}</div>${ver}</div>
     <div class="right">${right.join("")}</div>
   </div>`;
+}
+
+/* Real app-logo URL for a row, or null to fall back to the colored initial.
+   - Native: the Swift app serves each app's real icon over the stale-icon:// scheme,
+     keyed by the app's on-disk path (lazy, only fetched for rendered rows).
+   - Web/Local: no filesystem access → null here; App Store artwork is layered in
+     separately (PR #3) for Mac App Store apps. */
+function iconURL(app) {
+  if (IS_NATIVE && app && app.path) {
+    return "stale-icon://icon?path=" + encodeURIComponent(app.path);
+  }
+  return null;
 }
 
 function groupBlock(cls, dot, title, items, open, footer) {
