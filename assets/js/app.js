@@ -120,10 +120,11 @@ async function loadCasks() {
     state.index = buildIndex(data);
     const label = { cached: " (cached)", offline: " (offline copy)", fresh: "" }[mode] || "";
     setDb("ready", fmtNum(data.length) + " apps tracked" + label);
-    dom.checkBtn.disabled = dom.input.value.trim().length === 0;
+    if (dom.checkBtn && dom.input) dom.checkBtn.disabled = dom.input.value.trim().length === 0;
   }
 }
 function setDb(stateName, text) {
+  if (!dom.dbStatus || !dom.dbText) return;   // test/headless: no status UI present
   dom.dbStatus.className = "db" + (stateName === "ready" ? " ready" : stateName === "error" ? " error" : "");
   dom.dbText.textContent = text;
 }
@@ -484,11 +485,16 @@ function runCheck(apps, { diff = true } = {}) {
   return true;
 }
 
-/* ---------- App Store enrichment (iTunes Lookup API) ----------
-   Mac App Store apps aren't in Homebrew, so the base scan can't show their latest
-   version. Apple's public iTunes API returns the current version + artwork. We look
-   each up (by bundleId in native, by name on web), cache results (7-day TTL), update
-   the row in place, and re-tally the summary. Best-effort: failures leave the row as-is. */
+/* ---------- App Store enrichment (iTunes API) ----------
+   Mac App Store apps aren't in Homebrew, so the base scan can't show their latest version.
+   Apple's public iTunes API returns the current version + artwork. We cache results
+   (7-day TTL), update the row in place, and re-tally. Best-effort: failures leave the row.
+
+   IMPORTANT (audit finding): the /lookup endpoint does NOT send CORS headers, so it fails
+   from a browser; the /search endpoint DOES. We therefore use /search in the browser and
+   match the right result by bundleId (when the native scanner provided one) or by name.
+   The native app could use /lookup directly (no CORS), but /search works everywhere, so we
+   use one code path for simplicity and reliability. */
 const ITUNES_TTL = 7 * 24 * 60 * 60 * 1000;
 async function itunesLookup(app) {
   const key = "itunes:" + rowKey(app);
@@ -498,19 +504,17 @@ async function itunesLookup(app) {
   } catch {}
   let data = null;
   try {
-    let url;
-    if (app.bundleId) {
-      url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(app.bundleId)}&country=us&entity=macSoftware`;
-    } else {
-      url = `https://itunes.apple.com/search?term=${encodeURIComponent(app.name)}&entity=macSoftware&limit=3&country=us`;
-    }
+    // /search is CORS-enabled (unlike /lookup). Search by name, then disambiguate.
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(app.name)}&entity=macSoftware&limit=8&country=us`;
     const res = await fetch(url);
     if (res.ok) {
       const j = await res.json();
       const results = j.results || [];
-      // by name: pick the closest title match
-      const pick = app.bundleId ? results[0]
-        : results.find(r => norm(r.trackName) === norm(app.name)) || results[0];
+      const pick =
+        (app.bundleId && results.find(r => r.bundleId === app.bundleId)) ||  // exact when we have the id
+        results.find(r => norm(r.trackName) === norm(app.name)) ||           // exact title
+        results.find(r => norm(r.trackName).startsWith(norm(app.name))) ||   // prefix
+        null;                                                                // else: no confident match
       if (pick && pick.version) {
         data = { version: pick.version, art: pick.artworkUrl512 || pick.artworkUrl100 || null,
                  url: pick.trackViewUrl || null };
@@ -860,8 +864,21 @@ function startUpdate(btn) {
   }
 }
 
+/* debug/test API — assigned BEFORE boot() so it exists even if boot throws, and so the
+   test suite (which loads app.js without the full app DOM) can use the pure functions. */
+window.Stale = {
+  state, norm, verParts, cmpVer, severity, parseInput, dedupe, analyze,
+  freshnessScore, freshnessWeight, diffSince, runCheck, buildICS, SAMPLE,
+  build: BUILD, dbName: DB_NAME, detectBuild, isNative: IS_NATIVE,
+};
+
 /* boot */
 function boot() {
+  // The full app needs its DOM; when absent (e.g. the test harness) just load the DB so
+  // the engine + window.Stale are usable, and skip UI wiring.
+  const hasUI = !!dom.intro && !!dom.groups && !!dom.dbStatus;
+  if (!hasUI) { loadCasks(); return; }
+
   // one-time cleanup: pre-1.1 builds used a single un-namespaced DB; drop the orphan.
   try { indexedDB.deleteDatabase("stale-db"); } catch {}
   applyBuildIdentity();
@@ -881,10 +898,3 @@ function boot() {
   }
 }
 boot();
-
-/* debug/test API (used by the pilot test-suite; harmless in production) */
-window.Stale = {
-  state, norm, verParts, cmpVer, severity, parseInput, dedupe, analyze,
-  freshnessScore, freshnessWeight, diffSince, runCheck, buildICS, SAMPLE,
-  build: BUILD, dbName: DB_NAME, detectBuild, isNative: IS_NATIVE,
-};

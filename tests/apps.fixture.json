@@ -1,0 +1,137 @@
+{
+  "SPApplicationsDataType": [
+    {
+      "_name": "Google Chrome",
+      "arch_kind": "arch_arm_i64",
+      "info": "Google Chrome 148.0.7778.217, Copyright 2026 Google LLC. All rights reserved.",
+      "lastModified": "2025-12-18T03:27:46Z",
+      "obtained_from": "identified_developer",
+      "path": "/Applications/Google Chrome.app",
+      "signed_by": [
+        "Developer ID Application: Google LLC (EQHXZ8M8AV)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "148.0.7778.217"
+    },
+    {
+      "_name": "Visual Studio Code",
+      "arch_kind": "arch_arm_i64",
+      "lastModified": "2025-12-17T14:37:38Z",
+      "obtained_from": "identified_developer",
+      "path": "/Users/rajparmar/Downloads/Visual Studio Code.app",
+      "signed_by": [
+        "Developer ID Application: Microsoft Corporation (UBF8T346G9)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "1.107.1"
+    },
+    {
+      "_name": "LibreOffice",
+      "arch_kind": "arch_arm",
+      "lastModified": "2026-06-02T21:34:06Z",
+      "obtained_from": "identified_developer",
+      "path": "/Applications/LibreOffice.app",
+      "signed_by": [
+        "Developer ID Application: The Document Foundation (7P5S3ZLCN7)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "26.2.3.2"
+    },
+    {
+      "_name": "Spotify",
+      "arch_kind": "arch_arm",
+      "lastModified": "2026-05-23T21:11:55Z",
+      "obtained_from": "identified_developer",
+      "path": "/Applications/Spotify.app",
+      "signed_by": [
+        "Developer ID Application: Spotify (2FNC3A47ZF)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "1.2.90.451"
+    },
+    {
+      "_name": "Discord",
+      "arch_kind": "arch_arm_i64",
+      "lastModified": "2026-05-26T14:42:40Z",
+      "obtained_from": "identified_developer",
+      "path": "/Applications/Discord.app",
+      "signed_by": [
+        "Developer ID Application: Discord, Inc. (53Q6R32WPB)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "0.0.392"
+    },
+    {
+      "_name": "Discord",
+      "arch_kind": "arch_arm_i64",
+      "lastModified": "2026-06-02T21:29:52Z",
+      "obtained_from": "identified_developer",
+      "path": "/Users/rajparmar/Library/Application Support/discord/app-0.0.393/Discord.app",
+      "signed_by": [
+        "Developer ID Application: Discord, Inc. (53Q6R32WPB)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "0.0.393"
+    },
+    {
+      "_name": "Calculator",
+      "arch_kind": "arch_arm_i64",
+      "lastModified": "2026-04-06T08:10:57Z",
+      "obtained_from": "apple",
+      "path": "/System/Applications/Calculator.app",
+      "signed_by": [
+        "Software Signing",
+        "Apple Code Signing Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "12.0"
+    },
+    {
+      "_name": "Chess",
+      "arch_kind": "arch_arm_i64",
+      "info": "3.18, Copyright 2003\u20132024 Apple Inc.",
+      "lastModified": "2026-04-06T08:10:57Z",
+      "obtained_from": "apple",
+      "path": "/System/Applications/Chess.app",
+      "signed_by": [
+        "Software Signing",
+        "Apple Code Signing Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "3.18"
+    },
+    {
+      "_name": "Music",
+      "arch_kind": "arch_arm_i64",
+      "info": "Music 1.6.4.88, \u00a9 2019\u20132026 Apple Inc. All rights reserved.",
+      "lastModified": "2026-04-06T08:10:57Z",
+      "obtained_from": "apple",
+      "path": "/System/Applications/Music.app",
+      "signed_by": [
+        "Software Signing",
+        "Apple Code Signing Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "1.6.4"
+    },
+    {
+      "_name": "Notes",
+      "arch_kind": "arch_arm_i64",
+      "lastModified": "2026-04-06T08:10:57Z",
+      "obtained_from": "apple",
+      "path": "/System/Applications/Notes.app",
+      "signed_by": [
+        "Software Signing",
+        "Apple Code Signing Certification Authority",
+        "Apple Root CA"
+      ],
+      "version": "4.13"
+    }
+  ]
+}
