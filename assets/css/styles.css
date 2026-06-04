@@ -127,6 +127,7 @@ body {
   overflow: hidden;
 }
 .titlebar {
+  position: relative;              /* anchor for the absolutely-centered title */
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
@@ -135,8 +136,16 @@ body {
 .traffic { display: flex; gap: 8px; }
 .traffic i { width: 11px; height: 11px; border-radius: 50%; display: block; }
 .traffic i:nth-child(1){ background:#ff5f57; } .traffic i:nth-child(2){ background:#febc2e; } .traffic i:nth-child(3){ background:#28c840; }
-.title { flex: 1; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--dim); user-select: none; letter-spacing: 0.02em; }
-.titlebar-right { display: flex; align-items: center; gap: 10px; }
+/* Title is centered to the WINDOW, not to the leftover flex space — so uneven
+   left/right groups (e.g. the wide "apps tracked" status) never shift it off-center.
+   pointer-events:none keeps clicks passing through to anything beneath. */
+.title {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap; pointer-events: none;
+  font-size: 12.5px; font-weight: 600; color: var(--dim); user-select: none; letter-spacing: 0.02em;
+}
+.titlebar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 
 .install-btn {
   appearance: none; border: 1px solid var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent);
