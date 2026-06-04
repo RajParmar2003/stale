@@ -278,10 +278,12 @@ textarea#input.dragover { border-color: var(--blue); border-style: dashed; backg
 .sumcard {
   background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px;
   cursor: pointer; transition: border-color .12s, transform .06s, background .12s;
+  color: var(--text); font: inherit; text-align: left; appearance: none;  /* <button> resets — else numbers default to black */
 }
 .sumcard:hover { border-color: var(--line2); }
 .sumcard:active { transform: translateY(1px); }
-.sumcard .n { font-size: 26px; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1; }
+/* default number color is explicit (a <button> doesn't inherit text color) */
+.sumcard .n { font-size: 26px; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text); }
 .sumcard .l { font-size: 10.5px; color: var(--dim); font-weight: 500; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
 .sumcard.act .n { color: var(--amber-d); }
 .sumcard.ok .n { color: var(--green-d); }
