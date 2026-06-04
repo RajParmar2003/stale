@@ -12,7 +12,7 @@ out of date — **everything runs on your machine; your app list is never upload
 
 <br>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-0a6dff.svg?style=flat-square)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-1db954.svg?style=flat-square)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS%2013%2B-1db954.svg?style=flat-square&logo=apple&logoColor=white)](#)
 [![Swift](https://img.shields.io/badge/Native-Swift%206-e8820e.svg?style=flat-square&logo=swift&logoColor=white)](native/)
 [![PWA](https://img.shields.io/badge/Web-PWA-bf5af2.svg?style=flat-square)](#run-it)
