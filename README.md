@@ -1,24 +1,35 @@
 <div align="center">
 
-<img src="assets/icons/icon-192.png" width="96" height="96" alt="Stale icon" />
+<img src="assets/icons/icon-192.png" width="104" height="104" alt="Stale icon" />
 
 # Stale
 
-**Find the outdated apps on your Mac — privately, with no install.**
+### Find the outdated apps on your Mac — privately, with no install.
 
-A free, client-side replacement for [MacUpdater](https://tidbits.com/2026/01/09/macupdater-shuts-down-leaving-users-searching-for-alternatives/) (which shut down on Jan 1, 2026). Stale checks the apps on your Mac against Homebrew's live version database and tells you what's out of date. Everything runs in your browser — your app list never leaves your machine.
+The free, client-side replacement for **MacUpdater** (which shut down Jan 1, 2026).
+Stale checks your installed apps against Homebrew's live version database and shows what's
+out of date — **everything runs on your machine; your app list is never uploaded.**
+
+<br>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-0a6dff.svg?style=flat-square)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/Platform-macOS%2013%2B-1db954.svg?style=flat-square&logo=apple&logoColor=white)](#)
+[![Swift](https://img.shields.io/badge/Native-Swift%206-e8820e.svg?style=flat-square&logo=swift&logoColor=white)](native/)
+[![PWA](https://img.shields.io/badge/Web-PWA-bf5af2.svg?style=flat-square)](#run-it)
+[![Zero dependencies](https://img.shields.io/badge/Dependencies-0-444.svg?style=flat-square)](#architecture)
+[![Privacy: no backend](https://img.shields.io/badge/Privacy-no%20backend-1db954.svg?style=flat-square)](#privacy)
+
+### [▶ Try the live demo](https://rajparmar2003.github.io/stale/?demo) &nbsp;·&nbsp; no install, runs in your browser
+
+**[Why it exists](#why-this-exists) · [Features](#features) · [How it works](#how-it-works) · [Run it](#run-it) · [Architecture](#architecture)**
+
+<br>
+
+<img src="docs/assets/hero.png" alt="Stale — freshness score, real app icons, version deltas, and one-click updates" width="640" />
+
+<sub>Three entities, one engine: a **Web** app, a double-clickable **Local** launcher, and a native **Mac app** that scans directly and updates apps with one click.</sub>
 
 </div>
-
----
-
-## Design evolution
-
-![Before and after — system font + emoji vs. Geist + Lucide icons](docs/assets/before-after.png)
-
-The current UI (right) uses the **Geist** typeface, **Lucide** SVG icons, a monochrome graphite
-action color, and sharp hairline surfaces. Regenerate this comparison against any past commit
-with [`scripts/compare.sh`](scripts/compare.sh).
 
 ---
 

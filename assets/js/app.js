@@ -932,5 +932,13 @@ function boot() {
       else if (++tries > 80) clearInterval(t);
     }, 150);
   }
+  // ?demo — auto-run the sample once the DB is ready (for the live demo + screenshots).
+  if (new URLSearchParams(location.search).has("demo")) {
+    let tries = 0;
+    const t = setInterval(() => {
+      if (state.index) { clearInterval(t); dom.sampleBtn && dom.sampleBtn.click(); }
+      else if (++tries > 80) clearInterval(t);
+    }, 150);
+  }
 }
 boot();
