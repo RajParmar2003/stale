@@ -471,13 +471,11 @@ html[data-native="true"] #installBtn { display: none !important; }
    and a single, subtle scroll area replaces the page-in-a-page look. */
 html[data-native="true"], html[data-native="true"] body {
   height: 100%;
-  overflow: hidden;                /* lock BOTH html + body — only .body scrolls, so the
-                                      titlebar stays pinned like a real app window */
-  overscroll-behavior: none;       /* no rubber-banding that nudges the chrome */
 }
 html[data-native="true"] body {
   padding: 0;
   background: var(--win);          /* one seamless surface, no outer frame */
+  overflow: hidden;                /* the .body region owns the only scroll */
 }
 html[data-native="true"] .window {
   max-width: none;
