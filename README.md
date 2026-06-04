@@ -114,6 +114,10 @@ A deliberately **buildless** static app — instant load, easy to host anywhere,
 
 Version comparison is a **best-effort heuristic** and coverage is limited to apps in Homebrew's database. See [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for the full, evidence-backed list. Always confirm before updating, and prefer each app's own updater or your package manager.
 
+## Roadmap
+
+Next up: a **notarized `.dmg` + GitHub Release** so anyone can download and run the native app without building from source (the build/notarize automation is already done in [`native/notarize.sh`](native/notarize.sh)). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ## Credits & licence
 
 - Version data: the **[Homebrew Cask](https://formulae.brew.sh)** project (BSD-2-Clause). Stale is not affiliated with Homebrew.
